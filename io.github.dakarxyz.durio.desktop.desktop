@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=dur.io
+Comment=Chat with end-to-end encrypted direct messages
+Exec=durio
+Terminal=false
+Type=Application
+Icon=io.github.dakarxyz.durio.desktop
+Categories=Network;InstantMessaging
+StartupWMClass=durio
+X-Desktop-File-Install-Version=0.26
+X-Flatpak=io.github.dakarxyz.durio.desktop

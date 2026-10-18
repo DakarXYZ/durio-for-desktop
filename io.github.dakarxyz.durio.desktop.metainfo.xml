@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop">
+  <id>io.github.dakarxyz.durio.desktop</id>
+  <launchable type="desktop-id">io.github.dakarxyz.durio.desktop.desktop</launchable>
+  <name>dur.io</name>
+  <developer id="io.github.dakarxyz">
+    <name>DakarX</name>
+  </developer>
+  <summary>Chat with end-to-end encrypted direct messages</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>AGPL-3.0</project_license>
+  <description>
+    <p>dur.io is a fork of the open source Stoat chat client for self-hosted servers:
+      servers, channels, voice, and end-to-end encrypted direct messages and groups
+      (beta). The app ships its web interface locally and loads no code from servers.</p>
+  </description>
+  <url type="bugtracker">https://github.com/DakarXYZ/durio-for-desktop/issues</url>
+  <url type="vcs-browser">https://github.com/DakarXYZ/durio-for-desktop</url>
+  <content_rating type="oars-1.1">
+    <content_attribute id="social-chat">intense</content_attribute>
+    <content_attribute id="social-info">intense</content_attribute>
+    <content_attribute id="social-audio">intense</content_attribute>
+    <content_attribute id="social-contacts">intense</content_attribute>
+  </content_rating>
+  <requires>
+    <display_length compare="ge">940</display_length>
+    <internet>always</internet>
+  </requires>
+  <supports>
+    <control>keyboard</control>
+    <control>pointing</control>
+  </supports>
+</component>

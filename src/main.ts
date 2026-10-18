@@ -34,6 +34,15 @@ if (started) {
   app.quit();
 }
 
+// dur.io (D1): the AppUserModelID of the Squirrel shortcut, `com.squirrel.<package
+// name>.<exe>`, set before any window or notification exists; otherwise toasts are
+// attributed to another app and clicking them does not raise the window
+const APP_USER_MODEL_ID = "com.squirrel.durio.durio";
+
+if (process.platform === "win32") {
+  app.setAppUserModelId(APP_USER_MODEL_ID);
+}
+
 // disable hw-accel if so requested
 if (!config.hardwareAcceleration) {
   app.disableHardwareAcceleration();
@@ -72,11 +81,6 @@ if (acquiredLock) {
     initDiscordRpc();
     initVirtualMic();
     initAutoLaunch();
-
-    // Windows specific fix for notifications
-    if (process.platform === "win32") {
-      app.setAppUserModelId("chat.stoat.notifications");
-    }
   });
 
   // focus the window if we try to launch again

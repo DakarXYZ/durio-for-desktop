@@ -3,7 +3,7 @@ import AutoLaunch from "auto-launch";
 import { ipcMain } from "electron";
 
 export const autoLaunch = new AutoLaunch({
-  name: "Stoat",
+  name: "dur.io",
 });
 
 export function initAutoLaunch() {

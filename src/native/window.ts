@@ -202,14 +202,11 @@ export function createMainWindow() {
         .then((sources) => {
           // Shortcut for linux wayland.
           if (sources.length == 1) {
-            request.audioRequested
-              ? callback({
-                  video: sources[0],
-                  audio: "loopback",
-                })
-              : callback({
-                  video: sources[0],
-                });
+            callback(
+              request.audioRequested
+                ? { video: sources[0], audio: "loopback" }
+                : { video: sources[0] },
+            );
             return;
           }
           ipcMain.once(
@@ -218,14 +215,11 @@ export function createMainWindow() {
               if (idx < 0 || idx > sources.length) {
                 callback({});
               } else {
-                audio
-                  ? callback({
-                      video: sources[idx],
-                      audio: "loopback",
-                    })
-                  : callback({
-                      video: sources[idx],
-                    });
+                callback(
+                  audio
+                    ? { video: sources[idx], audio: "loopback" }
+                    : { video: sources[idx] },
+                );
               }
             },
           );

@@ -12,11 +12,18 @@ import path from "node:path";
 
 // import { globSync } from "node:fs";
 
+// dur.io (stage 7, D1): our own identity. `packageName` is the Squirrel/NuGet id, so
+// the shortcut's AppUserModelID is `com.squirrel.durio.durio` (see `src/main.ts`).
 const STRINGS = {
-  author: "Revolt Platforms LTD",
-  name: "Stoat",
-  execName: "stoat-desktop",
-  description: "Open source user-first chat platform.",
+  author: "DakarX",
+  name: "dur.io",
+  packageName: "durio",
+  execName: "durio",
+  appId: "io.github.dakarxyz.durio.desktop",
+  description: "Chat with end-to-end encrypted direct messages.",
+  copyright:
+    "Copyright (C) 2026 DakarX. Based on Stoat for Desktop, Copyright (C) 2025 Revolt Platforms LTD",
+  repository: { owner: "DakarXYZ", name: "durio-for-desktop" },
 };
 
 const ASSET_DIR = "assets/desktop";
@@ -26,21 +33,23 @@ const ASSET_DIR = "assets/desktop";
  */
 const makers: ForgeConfig["makers"] = [
   new MakerSquirrel({
-    name: STRINGS.name,
+    name: STRINGS.packageName,
+    title: STRINGS.name,
     authors: STRINGS.author,
-    // todo: hoist this
-    iconUrl: `https://stoat.chat/app/assets/icon-DUSNE-Pb.ico`,
+    owners: STRINGS.author,
+    // icon of "Apps & features", fetched from our repository (never a chat server)
+    iconUrl: `https://raw.githubusercontent.com/${STRINGS.repository.owner}/${STRINGS.repository.name}/main/${ASSET_DIR}/icon.ico`,
     // todo: loadingGif
     setupIcon: `${ASSET_DIR}/icon.ico`,
     description: STRINGS.description,
     exe: `${STRINGS.execName}.exe`,
     setupExe: `${STRINGS.execName}-setup.exe`,
-    copyright: "Copyright (C) 2025 Revolt Platforms LTD",
+    copyright: STRINGS.copyright,
   }),
   new MakerZIP({}),
   new MakerFlatpak({
     options: {
-      id: "chat.stoat.StoatDesktop",
+      id: STRINGS.appId,
       description: STRINGS.description,
       productName: STRINGS.name,
       productDescription: STRINGS.description,
@@ -100,6 +109,13 @@ const config: ForgeConfig = {
     asar: true,
     name: STRINGS.name,
     executableName: STRINGS.execName,
+    appBundleId: STRINGS.appId,
+    appCopyright: STRINGS.copyright,
+    win32metadata: {
+      CompanyName: STRINGS.author,
+      ProductName: STRINGS.name,
+      FileDescription: STRINGS.name,
+    },
     icon:
       process.platform === "darwin"
         ? `${ASSET_DIR}/icon.icon`
@@ -171,10 +187,9 @@ const config: ForgeConfig = {
   ],
   publishers: [
     new PublisherGithub({
-      repository: {
-        owner: "stoatchat",
-        name: "for-desktop",
-      },
+      repository: STRINGS.repository,
+      // releases are drafted, checked (SHA256SUMS) and published by hand
+      draft: true,
     }),
   ],
 };

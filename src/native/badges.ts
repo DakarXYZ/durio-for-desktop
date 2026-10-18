@@ -47,8 +47,8 @@ export async function setBadgeCount(count: number) {
         signature: "sa{sv}",
         body: [
           process.env.container === "1"
-            ? "application://chat.stoat.StoatDesktop.desktop" // flatpak handling
-            : "application://stoat-desktop.desktop",
+            ? "application://io.github.dakarxyz.durio.desktop.desktop" // flatpak handling
+            : "application://durio.desktop",
           [
             ["count", ["x", Math.min(count, 0)]],
             ["count-visible", ["b", count !== 0]],

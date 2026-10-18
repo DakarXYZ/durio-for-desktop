@@ -2,11 +2,15 @@ import { Client } from "discord-rpc";
 
 import { config } from "./config";
 
+// dur.io (D1): the upstream Discord application belongs to Stoat; without an
+// application of our own the presence stays off even if the setting is on
+const DISCORD_CLIENT_ID = "";
+
 // internal state
 let rpc: Client;
 
 export async function initDiscordRpc() {
-  if (!config.discordRpc) return;
+  if (!config.discordRpc || !DISCORD_CLIENT_ID) return;
 
   // clean up existing client if one exists
   rpc?.removeAllListeners();
@@ -16,23 +20,15 @@ export async function initDiscordRpc() {
 
     rpc.on("ready", () =>
       rpc.setActivity({
-        state: "stoat.chat",
+        state: "dur.io",
         details: "Chatting with others",
-        largeImageKey: "qr",
-        largeImageText: "Join Stoat!",
-        buttons: [
-          {
-            label: "Join Stoat",
-            url: "https://stoat.chat/",
-          },
-        ],
       }),
     );
 
     rpc.on("disconnected", reconnect);
 
-    rpc.login({ clientId: "872068124005007420" });
-  } catch (err) {
+    rpc.login({ clientId: DISCORD_CLIENT_ID });
+  } catch {
     reconnect();
   }
 }

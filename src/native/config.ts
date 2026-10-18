@@ -59,7 +59,8 @@ const store = new Store({
     startMinimisedToTray: false,
     spellchecker: true,
     hardwareAcceleration: true,
-    discordRpc: true,
+    // dur.io: off by default, it publishes what the user is doing (D1)
+    discordRpc: false,
     windowState: {
       x: 0,
       y: 0,

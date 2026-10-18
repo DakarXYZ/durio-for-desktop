@@ -1,5 +1,5 @@
 {
-  description = "Stoat for Desktop Development shell";
+  description = "dur.io desktop development shell";
 
   inputs = {
     nixpkgs.url = "https://channels.nixos.org/nixpkgs-unstable/nixexprs.tar.zst";
