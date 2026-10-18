@@ -2,7 +2,11 @@ import { contextBridge, ipcRenderer } from "electron";
 
 import { version } from "../../package.json";
 
+import { durioBridge } from "./durio";
+
 contextBridge.exposeInMainWorld("native", {
+  ...durioBridge,
+
   versions: {
     node: () => process.versions.node,
     chrome: () => process.versions.chrome,

@@ -29,6 +29,9 @@ const schema = {
   discordRpc: {
     type: "boolean",
   } as JSONSchema.Boolean,
+  defaultServer: {
+    type: "string",
+  } as JSONSchema.String,
   windowState: {
     type: "object",
     properties: {
@@ -62,6 +65,8 @@ const store = new Store({
     hardwareAcceleration: true,
     // dur.io: off by default, it publishes what the user is doing (D1)
     discordRpc: false,
+    // dur.io (D3): optional prefill of the server address screen, empty (O13)
+    defaultServer: __DURIO_DEFAULT_SERVER__,
     windowState: {
       x: 0,
       y: 0,
@@ -192,6 +197,10 @@ class Config {
     );
 
     this.sync();
+  }
+
+  get defaultServer() {
+    return (store as never as { get(k: string): string }).get("defaultServer");
   }
 
   get windowState() {
