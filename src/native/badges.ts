@@ -5,6 +5,12 @@ import { NativeImage, app, nativeImage } from "electron";
 import { onTrusted } from "./security";
 import { mainWindow } from "./window";
 
+// dur.io (D5): overlay icons inlined at build time (-1 = unread dot, 10 = "9+")
+const badgeAssets = import.meta.glob<string>(
+  "../../assets/desktop/badges/*.ico",
+  { eager: true, query: "?asset", import: "default" },
+);
+
 // internal state
 const nativeIcons: Record<number, NativeImage> = {};
 let sessionBus: dbus.MessageBus | null;
@@ -20,9 +26,7 @@ export async function setBadgeCount(count: number) {
 
       if (!nativeIcons[count])
         nativeIcons[count] = nativeImage.createFromDataURL(
-          await import(
-            `../../assets/desktop/badges/${Math.min(count, 10)}.ico?asset`
-          ).then((asset) => asset.default),
+          badgeAssets[`../../assets/desktop/badges/${Math.min(count, 10)}.ico`],
         );
 
       mainWindow.setOverlayIcon(

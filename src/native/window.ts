@@ -67,6 +67,9 @@ export function createMainWindow() {
       nodeIntegration: false,
       sandbox: true,
       webviewTag: false,
+      // dur.io (D5): in the tray the page keeps its WebSocket, notifications and
+      // E2EE timers (key requests, retries) running at full speed
+      backgroundThrottling: false,
       spellcheck: true,
     },
   });
@@ -274,10 +277,23 @@ export function createMainWindow() {
   );
   onTrusted("close", () => mainWindow.close());
 
+  // dur.io (D5): a click on a notification raises the window, also from the tray
+  onTrusted("focus", () => showMainWindow());
+
   // mainWindow.webContents.openDevTools();
 
   // let i = 0;
   // setInterval(() => setBadgeCount((++i % 30) + 1), 1000);
+}
+
+/**
+ * Show, restore and focus the main window
+ */
+export function showMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.show();
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.focus();
 }
 
 /**

@@ -4,6 +4,9 @@
 import { ipcRenderer } from "electron";
 
 export const durioBridge = {
+  /** Show and focus the window, e.g. when a notification is clicked (D5) */
+  focus: () => ipcRenderer.send("focus"),
+
   /** 32-byte key of an account's crypto store, created on first use (D4) */
   e2eeStoreKey: (accountKey: string) =>
     ipcRenderer.invoke("secrets:get", accountKey) as Promise<{

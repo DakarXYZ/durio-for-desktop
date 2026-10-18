@@ -6,6 +6,7 @@ import { BrowserWindow, Notification, app, session } from "electron";
 import started from "electron-squirrel-startup";
 
 import { initAutoLaunch } from "./native/autoLaunch";
+import "./native/badges";
 import { config } from "./native/config";
 import { initDiscordRpc } from "./native/discordRpc";
 import { handleAppProtocol, registerAppScheme } from "./native/protocol";
@@ -14,7 +15,12 @@ import { guardWebContents, lockDownSession } from "./native/security";
 import { initServers } from "./native/servers";
 import { initTray } from "./native/tray";
 import { initVirtualMic } from "./native/virtualMic";
-import { PARTITION, createMainWindow, mainWindow } from "./native/window";
+import {
+  PARTITION,
+  createMainWindow,
+  mainWindow,
+  showMainWindow,
+} from "./native/window";
 
 // In Flatpak, we have to update the temp dir to a shared directory across host and sandbox;
 // otherwise, the icon will not show up in the tray when using app indicators.
@@ -99,11 +105,7 @@ if (acquiredLock) {
   });
 
   // focus the window if we try to launch again
-  app.on("second-instance", () => {
-    mainWindow.show();
-    mainWindow.restore();
-    mainWindow.focus();
-  });
+  app.on("second-instance", () => showMainWindow());
 
   // macOS specific behaviour to keep app active in dock:
   // (irrespective of the minimise-to-tray option)
