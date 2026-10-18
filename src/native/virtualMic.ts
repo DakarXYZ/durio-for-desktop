@@ -1,8 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Disable any checks because node-pipewire doesn't have types for our submodule
-import { app, ipcMain } from "electron";
+import { app } from "electron";
 
 import { sinkName, sourceName } from "../constants";
+
+import { handleTrusted } from "./security";
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
@@ -14,7 +16,7 @@ export const isWayland =
   process.platform === "linux" &&
   (process.env.XDG_SESSION_TYPE === "wayland" || !!process.env.WAYLAND_DISPLAY);
 
-ipcMain.handle("getIsWayland", () => isWayland);
+handleTrusted("getIsWayland", () => isWayland);
 
 export async function initVirtualMic() {
   // Only available on Wayland

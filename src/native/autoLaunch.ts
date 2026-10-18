@@ -1,19 +1,19 @@
 import AutoLaunch from "auto-launch";
 
-import { ipcMain } from "electron";
+import { handleTrusted } from "./security";
 
 export const autoLaunch = new AutoLaunch({
   name: "dur.io",
 });
 
 export function initAutoLaunch() {
-  ipcMain.handle("getAutostart", async () => {
+  handleTrusted("getAutostart", async () => {
     const enabled = await autoLaunch.isEnabled();
     return enabled;
   });
 
-  ipcMain.handle("setAutostart", async (_event, state: boolean) => {
-    if (state) {
+  handleTrusted("setAutostart", async (_event, state: boolean) => {
+    if (state === true) {
       await autoLaunch.enable();
       console.log("Received new configuration autoStart: true");
     } else {

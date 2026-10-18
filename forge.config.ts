@@ -128,8 +128,18 @@ const config: ForgeConfig = {
   rebuildConfig: {},
   makers,
   hooks: {
-    // Copy the node-pipewire dist to the app on linux
     packageAfterCopy: async (_config, buildPath, _version, platform) => {
+      // dur.io (D2): the for-web desktop build goes into the asar as `web/` and is
+      // served from `app://durio/`; `node scripts/sync-web.mjs` puts it there
+      if (!fs.existsSync("web/index.html")) {
+        throw new Error(
+          "web/index.html is missing: run `node scripts/sync-web.mjs --build` first",
+        );
+      }
+
+      fs.cpSync("web", path.join(buildPath, "web"), { recursive: true });
+
+      // Copy the node-pipewire dist to the app on linux
       if (platform === "linux") {
         // Copy only the files we need to run the code, which is dist, LICENSE, and package.json
         fs.cpSync(
@@ -183,6 +193,8 @@ const config: ForgeConfig = {
       [FuseV1Options.EnableNodeCliInspectArguments]: false,
       [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
       [FuseV1Options.OnlyLoadAppFromAsar]: true,
+      // dur.io (D2): the app is served from `app://`, file:// needs no extra powers
+      [FuseV1Options.GrantFileProtocolExtraPrivileges]: false,
     }),
   ],
   publishers: [

@@ -90,3 +90,10 @@ typings/
 
 # Electron-Forge
 out/
+
+# dur.io: the for-web desktop build, copied by scripts/sync-web.mjs
+web/
+
+# Playwright
+test-results/
+playwright-report/

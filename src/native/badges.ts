@@ -1,7 +1,8 @@
 import dbus from "@homebridge/dbus-native";
 
-import { NativeImage, app, ipcMain, nativeImage } from "electron";
+import { NativeImage, app, nativeImage } from "electron";
 
+import { onTrusted } from "./security";
 import { mainWindow } from "./window";
 
 // internal state
@@ -66,4 +67,6 @@ export async function setBadgeCount(count: number) {
   }
 }
 
-ipcMain.on("setBadgeCount", (_event, count: number) => setBadgeCount(count));
+onTrusted("setBadgeCount", (_event, count: number) => {
+  if (Number.isInteger(count) && count >= -1) setBadgeCount(count);
+});

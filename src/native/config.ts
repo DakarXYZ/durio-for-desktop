@@ -1,9 +1,10 @@
 import { type JSONSchema } from "json-schema-typed";
 
-import { ipcMain } from "electron";
 import Store from "electron-store";
 
+import "./devOverrides";
 import { destroyDiscordRpc, initDiscordRpc } from "./discordRpc";
+import { onTrusted } from "./security";
 import { mainWindow } from "./window";
 
 const schema = {
@@ -212,9 +213,25 @@ class Config {
 
 export const config = new Config();
 
-ipcMain.on("config", (_, newConfig: Partial<DesktopConfig>) => {
-  console.info("Received new configuration", newConfig);
-  Object.entries(newConfig).forEach(
-    ([key, value]) => (config[key as keyof DesktopConfig] = value as never),
-  );
+// dur.io (D2): the page may change only these settings, and only to booleans;
+// `firstLaunch` and `windowState` belong to the main process
+const PAGE_SETTINGS = [
+  "customFrame",
+  "minimiseToTray",
+  "startMinimisedToTray",
+  "spellchecker",
+  "hardwareAcceleration",
+  "discordRpc",
+] as const;
+
+onTrusted("config", (_, newConfig: unknown) => {
+  if (typeof newConfig !== "object" || newConfig === null) return;
+
+  for (const key of PAGE_SETTINGS) {
+    const value = (newConfig as Record<string, unknown>)[key];
+    if (typeof value === "boolean" && config[key] !== value) {
+      console.info(`Received new configuration ${key}: ${value}`);
+      config[key] = value;
+    }
+  }
 });

@@ -2,6 +2,7 @@ import { join } from "node:path";
 
 import {
   BrowserWindow,
+  type IpcMainEvent,
   Menu,
   MenuItem,
   app,
@@ -14,17 +15,20 @@ import {
 import windowIconAsset from "../../assets/desktop/icon.png?asset";
 
 import { config } from "./config";
+import { APP_URL, isAppUrl, isTrustedSender, onTrusted } from "./security";
 import { updateTrayMenu } from "./tray";
 
 // global reference to main window
 export let mainWindow: BrowserWindow;
 
-// currently in-use build
-export const BUILD_URL = new URL(
-  app.commandLine.hasSwitch("force-server")
-    ? app.commandLine.getSwitchValue("force-server")
-    : /*MAIN_WINDOW_VITE_DEV_SERVER_URL ??*/ "https://stoat.chat/app",
-);
+// dur.io (D2, D3): the packaged for-web build (`app://durio/`, see `protocol.ts`) in
+// one persistent session for all servers and accounts; for-web isolates their data
+export const PARTITION = "persist:main";
+
+// the screen picker waiting for the page's answer, if any
+let pendingScreenPick:
+  | ((event: IpcMainEvent, ...args: unknown[]) => void)
+  | null = null;
 
 // internal window state
 let shouldQuit = false;
@@ -58,8 +62,11 @@ export function createMainWindow() {
     webPreferences: {
       // relative to `.vite/build`
       preload: join(__dirname, "preload.js"),
+      partition: PARTITION,
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
+      webviewTag: false,
       spellcheck: true,
     },
   });
@@ -89,9 +96,7 @@ export function createMainWindow() {
   }
 
   // load the entrypoint
-  mainWindow
-    .loadURL(BUILD_URL.toString())
-    .then(() => mainWindow.webContents.reload());
+  mainWindow.loadURL(APP_URL);
 
   // minimise window to tray
   mainWindow.on("close", (event) => {
@@ -194,9 +199,14 @@ export function createMainWindow() {
     }
   });
 
-  // Create display media request handler
-  session.defaultSession.setDisplayMediaRequestHandler(
+  // Create display media request handler (on the window's session, D2)
+  session.fromPartition(PARTITION).setDisplayMediaRequestHandler(
     (request, callback) => {
+      if (!isAppUrl(request.frame?.url)) {
+        callback({});
+        return;
+      }
+
       desktopCapturer
         .getSources({ types: ["screen", "window"], fetchWindowIcons: true })
         .then((sources) => {
@@ -209,20 +219,30 @@ export function createMainWindow() {
             );
             return;
           }
-          ipcMain.once(
-            "screenPickerCallback",
-            (_, idx: number, audio: boolean) => {
-              if (idx < 0 || idx > sources.length) {
-                callback({});
-              } else {
-                callback(
-                  audio
-                    ? { video: sources[idx], audio: "loopback" }
-                    : { video: sources[idx] },
-                );
-              }
-            },
-          );
+          // only the app may answer; a newer request cancels an unanswered one
+          if (pendingScreenPick) {
+            ipcMain.removeListener("screenPickerCallback", pendingScreenPick);
+          }
+
+          const onPick = (event: IpcMainEvent, ...args: unknown[]) => {
+            if (!isTrustedSender(event)) return;
+            ipcMain.removeListener("screenPickerCallback", onPick);
+            pendingScreenPick = null;
+
+            const [idx, audio] = args as [number, boolean];
+            if (!Number.isInteger(idx) || idx < 0 || idx >= sources.length) {
+              callback({});
+            } else {
+              callback(
+                audio
+                  ? { video: sources[idx], audio: "loopback" }
+                  : { video: sources[idx] },
+              );
+            }
+          };
+
+          pendingScreenPick = onPick;
+          ipcMain.on("screenPickerCallback", onPick);
           mainWindow.webContents.send(
             "screenPicker",
             sources.map((source, idx) => {
@@ -248,11 +268,11 @@ export function createMainWindow() {
   );
 
   // push world events to the window
-  ipcMain.on("minimise", () => mainWindow.minimize());
-  ipcMain.on("maximise", () =>
+  onTrusted("minimise", () => mainWindow.minimize());
+  onTrusted("maximise", () =>
     mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize(),
   );
-  ipcMain.on("close", () => mainWindow.close());
+  onTrusted("close", () => mainWindow.close());
 
   // mainWindow.webContents.openDevTools();
 
