@@ -18,7 +18,10 @@
     "run:nix": "/usr/bin/env electron-nix .",
     "typecheck": "tsc --noEmit",
     "install:flatpak": "flatpak --user install out/make/flatpak/x86_64/io.github.dakarxyz.durio.desktop_stable_x86_64.flatpak",
-    "run:flatpak": "flatpak run io.github.dakarxyz.durio.desktop"
+    "run:flatpak": "flatpak run io.github.dakarxyz.durio.desktop",
+    "web:sync": "node scripts/sync-web.mjs",
+    "web:build": "node scripts/sync-web.mjs --build",
+    "test:e2e": "playwright test"
   },
   "keywords": [],
   "author": {

@@ -1,0 +1,173 @@
+# dur.io (stage 7, D6): the Windows client is built only here, from a tag, never on a
+# developer machine. A release = this repository at the tag + for-web at the commit
+# pinned in for-web.lock.json. Releases are drafts with SHA256SUMS; publish by hand.
+name: dur.io desktop
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    # for-web `vite build --mode desktop` at the pinned commit, checked by sync-web
+    name: for-web desktop build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: for-desktop
+
+      - name: Read the for-web pin
+        id: pin
+        run: |
+          echo "repository=$(jq -r .repository for-desktop/for-web.lock.json | sed -E 's#^https://github.com/##; s#\.git$##')" >> "$GITHUB_OUTPUT"
+          echo "commit=$(jq -r .commit for-desktop/for-web.lock.json)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.pin.outputs.repository }}
+          ref: ${{ steps.pin.outputs.commit }}
+          path: for-web
+          submodules: recursive
+
+      - name: Setup Mise
+        uses: jdx/mise-action@v2
+        with:
+          working_directory: for-web
+
+      - name: No Sentry DSN in our builds
+        run: test -z "${VITE_SENTRY_DSN:-}"
+
+      - name: Build for-web for the desktop app
+        working-directory: for-web
+        run: |
+          mise install:frozen
+          mise assets:fallback
+          mise build:deps
+          mise build:desktop
+
+      - name: Copy into web/ (pin, clean tree, CSP)
+        working-directory: for-desktop
+        run: node scripts/sync-web.mjs --from ../for-web --strict
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: for-desktop/web/
+          include-hidden-files: true
+          if-no-files-found: error
+
+  windows:
+    name: Windows (Squirrel)
+    needs: web
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: web
+          path: web
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+
+      - name: Package and run the Playwright tests (no backend)
+        run: |
+          pnpm package
+          pnpm test:e2e
+
+      - name: Make the installer (unsigned, O11')
+        env:
+          DURIO_SIGN: "0"
+        run: pnpm make --platform win32
+
+      - name: SHA256SUMS
+        shell: pwsh
+        run: |
+          $dir = "out/make/squirrel.windows/x64"
+          Copy-Item web/durio-web.json $dir/
+          Get-ChildItem $dir -File |
+            Where-Object Name -ne "SHA256SUMS" |
+            ForEach-Object { "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name } |
+            Set-Content -Encoding ascii "$dir/SHA256SUMS"
+          Get-Content "$dir/SHA256SUMS"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: out/make/squirrel.windows/x64/
+          if-no-files-found: error
+
+  linux:
+    # Linux is only kept building (O11, Q66); it is not tested or released
+    name: Linux (build only)
+    needs: web
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: web
+          path: web
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm make --platform linux --targets @electron-forge/maker-zip
+
+  release:
+    name: Draft release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows
+          path: release
+
+      - name: Check the sums and draft the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd release
+          sha256sum -c SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" * \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft \
+            --verify-tag \
+            --title "dur.io $GITHUB_REF_NAME" \
+            --notes "Unsigned build (beta). Check the files against SHA256SUMS; Windows SmartScreen shows a warning: More info → Run anyway."

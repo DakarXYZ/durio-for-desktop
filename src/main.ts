@@ -1,6 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
-import { IUpdateInfo, updateElectronApp } from "update-electron-app";
+import {
+  IUpdateInfo,
+  UpdateSourceType,
+  updateElectronApp,
+} from "update-electron-app";
 
 import { BrowserWindow, Notification, app, session } from "electron";
 import started from "electron-squirrel-startup";
@@ -75,8 +79,15 @@ const onNotifyUser = (_info: IUpdateInfo) => {
 };
 
 if (acquiredLock) {
-  // start auto update logic
-  updateElectronApp({ onNotifyUser });
+  // start auto update logic: only GitHub Releases of our repository (Q62), never
+  // a chat server, which could otherwise swap the code through an update
+  updateElectronApp({
+    updateSource: {
+      type: UpdateSourceType.ElectronPublicUpdateService,
+      repo: "DakarXYZ/durio-for-desktop",
+    },
+    onNotifyUser,
+  });
 
   // create and configure the app when electron is ready
   app.on("ready", () => {

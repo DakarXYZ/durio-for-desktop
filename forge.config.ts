@@ -28,6 +28,14 @@ const STRINGS = {
 
 const ASSET_DIR = "assets/desktop";
 
+// dur.io (D6): v1 is released unsigned (O11'). DURIO_SIGN=1 signs the package, the
+// installer and the .nupkg contents through `scripts/windows-sign-hook.cjs`
+// (SignPath or signtool, 60-deploy §2a); anything else leaves signing off.
+const windowsSign =
+  process.env.DURIO_SIGN === "1"
+    ? { hookModulePath: path.resolve("scripts/windows-sign-hook.cjs") }
+    : undefined;
+
 /**
  * Build targets for the desktop app
  */
@@ -45,6 +53,7 @@ const makers: ForgeConfig["makers"] = [
     exe: `${STRINGS.execName}.exe`,
     setupExe: `${STRINGS.execName}-setup.exe`,
     copyright: STRINGS.copyright,
+    windowsSign,
   }),
   new MakerZIP({}),
   new MakerFlatpak({
@@ -110,6 +119,7 @@ const config: ForgeConfig = {
     name: STRINGS.name,
     executableName: STRINGS.execName,
     appBundleId: STRINGS.appId,
+    windowsSign,
     appCopyright: STRINGS.copyright,
     win32metadata: {
       CompanyName: STRINGS.author,
