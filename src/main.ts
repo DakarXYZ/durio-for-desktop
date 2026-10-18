@@ -9,6 +9,7 @@ import { initAutoLaunch } from "./native/autoLaunch";
 import { config } from "./native/config";
 import { initDiscordRpc } from "./native/discordRpc";
 import { handleAppProtocol, registerAppScheme } from "./native/protocol";
+import { initSecrets } from "./native/secrets";
 import { guardWebContents, lockDownSession } from "./native/security";
 import { initServers } from "./native/servers";
 import { initTray } from "./native/tray";
@@ -79,6 +80,7 @@ if (acquiredLock) {
     lockDownSession(session.defaultSession);
     handleAppProtocol(ses);
     initServers();
+    initSecrets();
 
     // create window and application contexts
     createMainWindow();
