@@ -219,10 +219,10 @@ jobs:
             sleep 1
           done
           for i in $(seq 60); do
-            docker exec durio-test-rabbit rabbitmq-diagnostics -q check_running >/dev/null 2>&1 && break
+            docker exec -u rabbitmq durio-test-rabbit rabbitmq-diagnostics -q check_running >/dev/null 2>&1 && break
             sleep 1
           done
-          docker exec durio-test-rabbit rabbitmqctl eval 'rabbit_exchange:declare(rabbit_misc:r(<<"/">>, exchange,
+          docker exec -u rabbitmq durio-test-rabbit rabbitmqctl eval 'rabbit_exchange:declare(rabbit_misc:r(<<"/">>, exchange,
             <<"revolt.default">>), topic, true, false, false, [], <<"rabbituser">>).'
 
       - name: Testkit stack (debug backend, server 2, TLS proxy, peer)
