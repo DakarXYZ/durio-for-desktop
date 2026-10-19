@@ -251,8 +251,11 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
           pnpm package
+          # Chromium picks the keyring by desktop: with none set safeStorage has no keyring
+          # and the app refuses to keep keys ("OS encryption is not available")
           dbus-run-session -- sh -c '
-            echo -n durio | gnome-keyring-daemon --unlock --components=secrets >/dev/null
+            eval "$(echo -n durio | gnome-keyring-daemon --unlock --components=secrets)"
+            export GNOME_KEYRING_CONTROL XDG_CURRENT_DESKTOP=GNOME
             xvfb-run -a pnpm test:e2e'
 
       - name: Server logs
