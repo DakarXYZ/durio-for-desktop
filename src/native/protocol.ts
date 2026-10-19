@@ -108,6 +108,25 @@ export function resolveWebPath(root: string, pathname: string): string | null {
   return file;
 }
 
+/**
+ * A route of a server with a port (`/i/<host>:<port>/…`): the app's index.html, never
+ * a file — `resolveWebPath` refuses the `:` (drive letters, alternate data streams)
+ * @param pathname URL path, still percent-encoded
+ */
+export function isPortRoute(pathname: string): boolean {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    return false;
+  }
+
+  return (
+    /^\/i\/[A-Za-z0-9.-]+:\d{1,5}(\/[^\0\\:]*)?$/.test(decoded) &&
+    !decoded.split("/").includes("..")
+  );
+}
+
 async function isFile(file: string) {
   try {
     return (await stat(file)).isFile();
@@ -141,7 +160,11 @@ export function handleAppProtocol(ses: Session) {
     }
 
     let file = resolveWebPath(root, url.pathname);
-    if (!file) return respond(403, "Forbidden");
+    if (!file) {
+      // a reload (F5) on a server with a port, e.g. `/i/name.duckdns.org:8443/…`
+      if (!isPortRoute(url.pathname)) return respond(403, "Forbidden");
+      file = path.join(root, "index.html");
+    }
 
     if (!(await isFile(file))) {
       // SPA: deep routes (`/i/<host>/channel/…`, hosts have dots) get index.html;

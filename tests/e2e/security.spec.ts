@@ -86,6 +86,18 @@ test("deep routes fall back to index.html, missing assets do not", async () => {
   expect(route.body).toContain("<title>fixture</title>");
 
   expect((await get("/assets/missing.js")).status).toBe(404);
+
+  // a server with a port: the `:` is no drive letter here (reload on a live server)
+  const port = await get("/i/srv1.localhost:14443/login");
+  expect(port.status).toBe(200);
+  expect(port.body).toContain("<title>fixture</title>");
+  for (const url of [
+    "/i/a.example:1/..%2F..%2Fsecret.txt",
+    "/i/a.example:1/x%5C..%5Csecret.txt",
+    "/i/a.example:1/C:%5Cx",
+    "/x/a.example:1/",
+  ])
+    expect((await get(url)).status, url).toBe(403);
 });
 
 test("paths outside the web root are rejected", async () => {
