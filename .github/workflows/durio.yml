@@ -145,6 +145,119 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm make --platform linux --targets @electron-forge/maker-zip
 
+  e2e-live:
+    # WEB-08 / D7: the E2EE scenarios (tests/e2e/live) against the stoat-crypto testkit
+    # stack — our backend built from source, the scripted peer as the other device. Docker
+    # runs only on the Linux runners: the app runs under xvfb, safeStorage gets a
+    # gnome-keyring (the app refuses the plain-text store). Not a gate for releases yet.
+    name: E2E with the testkit backend
+    needs: web
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      TESTKIT_PUBLIC_PORT: "14443"
+      CARGO_BUILD_JOBS: "4"
+
+    steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: true
+
+      # the workspace layout testkit-backend.sh expects: stoatchat/ next to stoat-crypto/
+      - uses: actions/checkout@v4
+        with:
+          path: for-desktop
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/durio-chat
+          ref: ${{ vars.DURIO_CHAT_REF || 'main' }}
+          path: stoatchat
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/durio-crypt
+          ref: ${{ vars.DURIO_CRYPT_REF || 'main' }}
+          path: stoat-crypto
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: web
+          path: for-desktop/web
+
+      - name: Backend builder image (durio-rust-dev:local)
+        run: |
+          docker build -t durio-rust-dev:local - <<'EOF'
+          FROM rust:1.92.0-slim-trixie
+          RUN apt-get update && apt-get install -y --no-install-recommends \
+              make pkg-config libdav1d-dev libssl-dev ca-certificates curl \
+              && rm -rf /var/lib/apt/lists/*
+          EOF
+
+      - name: Infra (as tools/rust-dev/test-env.sh up)
+        run: |
+          docker network create durio-test
+          docker run -d --name durio-test-redis --network durio-test redis:7-alpine
+          docker run -d --name durio-test-rabbit --network durio-test \
+            -e RABBITMQ_DEFAULT_USER=rabbituser -e RABBITMQ_DEFAULT_PASS=rabbitpass rabbitmq:4-alpine
+          docker run -d --name durio-test-mongo --network durio-test mongo:8 --replSet rs0 --bind_ip_all
+          for i in $(seq 60); do
+            docker exec durio-test-mongo mongosh --quiet --eval \
+              'try { rs.status().ok } catch (e) { rs.initiate({_id: "rs0", members: [{_id: 0, host: "durio-test-mongo:27017"}]}).ok }' \
+              2>/dev/null | grep -q 1 && break
+            sleep 1
+          done
+          for i in $(seq 60); do
+            docker exec durio-test-rabbit rabbitmq-diagnostics -q check_running >/dev/null 2>&1 && break
+            sleep 1
+          done
+          docker exec durio-test-rabbit rabbitmqctl eval 'rabbit_exchange:declare(rabbit_misc:r(<<"/">>, exchange,
+            <<"revolt.default">>), topic, true, false, false, [], <<"rabbituser">>).'
+
+      - name: Testkit stack (debug backend, server 2, TLS proxy, peer)
+        run: stoat-crypto/scripts/testkit-backend.sh up
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+          package_json_file: for-desktop/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: for-desktop/pnpm-lock.yaml
+
+      - name: Display and keyring for Electron
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb dbus-x11 gnome-keyring
+          # Ubuntu 24.04 blocks the user namespaces of Chromium's sandbox
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Package and run all Playwright tests (live ones included)
+        working-directory: for-desktop
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm package
+          dbus-run-session -- sh -c '
+            echo -n durio | gnome-keyring-daemon --unlock --components=secrets >/dev/null
+            xvfb-run -a pnpm test:e2e'
+
+      - name: Server logs
+        if: failure()
+        run: |
+          for s in delta bonfire autumn pushd delta2 bonfire2 proxy; do
+            echo "::group::$s"; docker logs --tail 200 durio-test-$s 2>&1; echo "::endgroup::"
+          done
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-live-results
+          path: for-desktop/test-results/
+          if-no-files-found: ignore
+
   release:
     name: Draft release
     if: startsWith(github.ref, 'refs/tags/v')
