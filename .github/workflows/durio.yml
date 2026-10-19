@@ -258,8 +258,8 @@ jobs:
       - name: Server logs
         if: failure()
         run: |
-          for s in delta bonfire autumn pushd delta2 bonfire2 proxy; do
-            echo "::group::$s"; docker logs --tail 200 durio-test-$s 2>&1; echo "::endgroup::"
+          for s in delta bonfire autumn pushd delta2 bonfire2 mongo2 rabbit2 proxy; do
+            echo "::group::$s"; docker logs --tail 200 durio-test-$s 2>&1 || echo "(no container durio-test-$s)"; echo "::endgroup::"
           done
 
       - uses: actions/upload-artifact@v4
