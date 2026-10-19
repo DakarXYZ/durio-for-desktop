@@ -106,16 +106,19 @@ export async function login(page: Page, email: string, password: string) {
  * @param email E-mail
  * @param password Password
  * @param username Username
+ * @param invite Invite link or code (invite-only servers)
  */
 export async function register(
   page: Page,
   email: string,
   password: string,
   username: string,
+  invite?: string,
 ) {
   await page.locator('a[href$="/login/create"]').first().click();
   await field(page, "email").fill(email);
   await field(page, "new-password").fill(password);
+  if (invite !== undefined) await field(page, "invite").fill(invite);
   await page.locator('button[type="submit"]').click();
   await field(page, "username").fill(username);
   await page.locator('button[type="submit"]').click();

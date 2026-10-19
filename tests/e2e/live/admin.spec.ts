@@ -7,6 +7,10 @@
 import { type Page, expect, test } from "@playwright/test";
 import { spawnSync } from "node:child_process";
 import { createHmac } from "node:crypto";
+import { rmSync, writeFileSync } from "node:fs";
+import { request } from "node:https";
+import { EOL, tmpdir } from "node:os";
+import path from "node:path";
 
 import { backendUp, live } from "./env";
 import { Peer } from "./peer";
@@ -29,12 +33,12 @@ test.beforeEach(() =>
  * Make a user an instance admin of server 1
  * @param userId User id
  */
-function makeAdmin(userId: string) {
+function makeAdmin(userId: string, mongo = "durio-test-mongo") {
   const result = spawnSync(
     "docker",
     [
       "exec",
-      "durio-test-mongo",
+      mongo,
       "mongosh",
       "revolt",
       "--quiet",
@@ -207,5 +211,213 @@ test("admin ends all sessions of a user: logged out, local data deleted", async 
     if (admin) await ui.stop(admin);
     await ui.stop(target);
     peer.close();
+  }
+});
+
+/**
+ * One request to a test server through the TLS proxy, from Node
+ * @param server `srv2.localhost:<port>`
+ */
+function call(
+  server: string,
+  method: string,
+  route: string,
+  body?: unknown,
+): Promise<{
+  status: number;
+  body: { type?: string } & Record<string, unknown>;
+}> {
+  const data = body === undefined ? undefined : JSON.stringify(body);
+  return new Promise((resolve, reject) => {
+    // Node does not resolve *.localhost the way Chromium does
+    const req = request(
+      `https://127.0.0.1:${live.port}/api${route}`,
+      {
+        method,
+        headers: {
+          host: server,
+          ...(data ? { "content-type": "application/json" } : {}),
+        },
+        servername: server.split(":")[0],
+        rejectUnauthorized: false,
+        timeout: 10_000,
+      },
+      (res) => {
+        let text = "";
+        res.on("data", (chunk) => (text += chunk));
+        res.on("end", () => {
+          let parsed = {};
+          try {
+            parsed = JSON.parse(text);
+          } catch {
+            // empty
+          }
+          resolve({ status: res.statusCode ?? 0, body: parsed });
+        });
+      },
+    );
+    req.on("error", reject);
+    req.end(data);
+  });
+}
+
+/**
+ * Restart delta of server 2 with sign-up by invitation on or off (the testkit has it
+ * off; its other settings stay)
+ * @param inviteOnly Invitation only
+ */
+async function inviteOnlyServer2(inviteOnly: boolean) {
+  const name = "durio-test-delta2";
+  const inspect = spawnSync(
+    "docker",
+    ["inspect", "-f", "{{json .Config.Env}}", name],
+    { encoding: "utf8" },
+  );
+  expect(inspect.status, inspect.stderr).toBe(0);
+  const env = (JSON.parse(inspect.stdout) as string[])
+    .filter(
+      (line) =>
+        !line.startsWith("REVOLT__API__REGISTRATION__INVITE_ONLY=") &&
+        !line.startsWith("PATH="),
+    )
+    .concat(`REVOLT__API__REGISTRATION__INVITE_ONLY=${inviteOnly}`);
+  const file = path.join(tmpdir(), `durio-delta2-${Date.now()}.env`);
+  writeFileSync(file, env.join(EOL));
+  try {
+    spawnSync("docker", ["rm", "-f", name]);
+    const run = spawnSync(
+      "docker",
+      [
+        "run",
+        "-d",
+        "--name",
+        name,
+        "--network",
+        live.network,
+        "--memory",
+        "1g",
+        "--env-file",
+        file,
+        "-v",
+        "durio-cargo-target:/target:ro",
+        "-w",
+        "/",
+        "durio-rust-dev:local",
+        "/target/debug/revolt-delta",
+      ],
+      { encoding: "utf8" },
+    );
+    expect(run.status, run.stderr).toBe(0);
+  } finally {
+    rmSync(file, { force: true });
+  }
+
+  await expect
+    .poll(
+      async (): Promise<unknown> =>
+        (await call(live.server2, "GET", "/").catch((): undefined => undefined))
+          ?.body?.features,
+      { timeout: 120_000, intervals: [1_000] },
+    )
+    .toMatchObject({ invite_only: inviteOnly });
+}
+
+test("admin invite links: single use, multi-use, revoked", async () => {
+  test.setTimeout(420_000);
+  const peer = new Peer();
+  let admin: ui.Session | undefined;
+  let fresh: ui.Session | undefined;
+  const tag = Date.now().toString(36);
+  const register = (n: string, invite: string) =>
+    call(live.server2, "POST", "/auth/account/create", {
+      email: `inv-${tag}-${n}@testkit.invalid`,
+      password: `inv-${tag}-password`,
+      invite,
+    });
+
+  try {
+    // the admin of server 2, made before sign-up needs an invite
+    const account = await peer.register("admin2", "admin", 2);
+    makeAdmin(account.user_id, "durio-test-mongo2");
+    await inviteOnlyServer2(true);
+
+    admin = await ui.start();
+    const page = admin.page;
+    const app = admin.app;
+    await ui.connect(page, live.server2);
+    await ui.login(page, account.email, account.password);
+    await ui.dismissFirstPrompt(page);
+    const secret = await enableTotp(peer, "admin2", account.password);
+    await ui.openSettings(page, "Administration");
+    await confirmTotp(page, secret);
+    await expect(page.getByText(/^Admin mode is on until/)).toBeVisible({
+      timeout: 20_000,
+    });
+
+    // single use, 1 hour: the link is copied
+    const clipboard = (): Promise<string> =>
+      app.evaluate(({ clipboard }) => clipboard.readText());
+    await page.getByRole("button", { name: "1 h", exact: true }).click();
+    await page.getByRole("button", { name: "Create and copy link" }).click();
+    await expect(page.getByText("Invite link copied.")).toBeVisible({
+      timeout: 20_000,
+    });
+    const single = await clipboard();
+    expect(single.startsWith(`https://${live.server2}/join/`)).toBe(true);
+    const singleCode = single.split("/").pop()!;
+    await expect(page.locator(`[data-invite="${singleCode}"]`)).toContainText(
+      "single use",
+    );
+
+    // a new account in a fresh profile, the link pasted
+    fresh = await ui.start();
+    await ui.connect(fresh.page, live.server2);
+    await ui.register(
+      fresh.page,
+      `inv-${tag}@testkit.invalid`,
+      `inv-${tag}-password`,
+      `inv_${tag}`,
+      single,
+    );
+    await ui.dismissFirstPrompt(fresh.page);
+    ui.expectClean(fresh);
+    await ui.stop(fresh);
+    fresh = undefined;
+
+    // used up
+    const again = await register("again", singleCode);
+    expect(again.status).toBeGreaterThanOrEqual(400);
+    expect(again.body.type).toBe("InvalidInvite");
+
+    // multi-use: counts its uses
+    await page.locator('mdui-checkbox[name="admin-invite-multi"]').click();
+    await page.getByRole("button", { name: "Create and copy link" }).click();
+    await expect.poll(clipboard, { timeout: 20_000 }).not.toBe(single);
+    const multiCode = (await clipboard()).split("/").pop()!;
+    expect((await register("m1", multiCode)).status).toBe(204);
+    expect((await register("m2", multiCode)).status).toBe(204);
+
+    await ui.closeSettings(page);
+    await ui.openSettings(page, "Administration");
+    const card = page.locator(`[data-invite="${multiCode}"]`);
+    await expect(card).toContainText("multi-use", { timeout: 20_000 });
+    await expect(card).toContainText("accounts made: 2");
+
+    // revoked: no more sign-ups
+    await card.getByRole("button", { name: "Revoke" }).click();
+    await page
+      .locator(".dialog")
+      .getByRole("button", { name: "Revoke", exact: true })
+      .click();
+    await expect(card).toHaveCount(0, { timeout: 20_000 });
+    const revoked = await register("m3", multiCode);
+    expect(revoked.status).toBeGreaterThanOrEqual(400);
+    expect(revoked.body.type).toBe("InvalidInvite");
+    ui.expectClean(admin);
+  } finally {
+    if (fresh) await ui.stop(fresh);
+    if (admin) await ui.stop(admin);
+    peer.close();
+    await inviteOnlyServer2(false);
   }
 });
