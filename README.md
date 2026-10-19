@@ -1,99 +1,179 @@
-<div align="center">
-<h1>dur.io for Windows</h1>
+# durio-for-desktop — dur.io для Windows
 
-A fork of [Stoat for Desktop](https://github.com/stoatchat/for-desktop) for self-hosted servers, with end-to-end
-encrypted direct messages and groups (beta). Windows only; Linux is kept building in CI.
+**English summary.** Windows client of the **dur.io** messenger (Electron). The interface
+([durio-for-web](https://github.com/DakarXYZ/durio-for-web)) ships inside the app and is never loaded from a
+server, so a hijacked chat server cannot swap the code that holds the encryption keys. Accounts on several servers,
+end-to-end encryption (beta) of DMs and groups with keys protected by Windows per account, an administration page
+with a 2FA admin mode. Install from [GitHub Releases](https://github.com/DakarXYZ/durio-for-desktop/releases).
+Licensed under AGPL-3.0.
 
-</div>
-<br/>
+Windows-клиент мессенджера **dur.io**. Автор и владелец форка — DakarX
+([GitHub DakarXYZ](https://github.com/DakarXYZ)).
 
-## How it differs from upstream
+Основано на [stoatchat/for-desktop](https://github.com/stoatchat/for-desktop). dur.io — независимый форк и не
+связан с проектом Stoat; название и логотип Stoat — товарные знаки их владельцев.
 
-- **The interface ships with the app.** The window loads a local build of
-  [durio-for-web](https://github.com/DakarXYZ/durio-for-web) (`vite build --mode desktop`) from `app://durio/`
-  (`src/native/protocol.ts`), never a remote page: a hijacked chat server cannot swap the code that holds the
-  encryption keys. The build is packed into the asar as `web/`; a release names the exact for-web commit
-  (`for-web.lock.json`, `web/durio-web.json` with the SHA-256 of every file).
-- **Locked down** (`src/native/security.ts`): navigation and redirects only within `app://durio`, links open in the
-  external browser, permissions only `media`, `display-capture`, `notifications`, `clipboard-sanitized-write`,
-  `fullscreen`, `speaker-selection` and only for the app, every IPC checks that the sender frame is
-  `app://durio/`, the `Content-Security-Policy` header comes from for-web's `desktop/csp.mjs` (copied here as
-  `src/native/csp.mjs`, checked by `scripts/sync-web.mjs`) plus `frame-ancestors 'none'`.
-- **No built-in server.** The first launch asks for a server address; all servers and accounts share one session
-  (`persist:main`) and for-web keeps their data apart. A build may suggest an address with
-  `DURIO_DEFAULT_SERVER=<host>` (empty by default).
-- **E2EE store keys** (`src/native/secrets.ts`): 32 random bytes per account, sealed with `safeStorage` (DPAPI) in
-  `%APPDATA%\dur.io\keys\<accountKey>.bin`. They protect the crypto store against other Windows users and a stolen
-  disk, not against programs running as the same user.
-- Updates only from the GitHub Releases of this repository. Discord Rich Presence is off.
+## Установка
 
-The bridge the page sees (`window.native`, `window.desktopConfig`) is documented in the for-web README, section
-"dur.io fork: desktop build".
+1. Откройте [Releases](https://github.com/DakarXYZ/durio-for-desktop/releases/latest) и скачайте
+   `durio-setup.exe` и `SHA256SUMS` того же релиза.
+2. Проверьте контрольную сумму: результат команды должен совпасть (без учёта регистра) со строкой `durio-setup.exe`
+   в `SHA256SUMS`. Не совпало — не запускайте.
 
-## Installing (users)
+   ```powershell
+   Get-FileHash .\durio-setup.exe -Algorithm SHA256
+   ```
 
-Releases are **not code-signed** yet. Windows SmartScreen warns about an unknown publisher: _More info_ → _Run
-anyway_. With Smart App Control turned on (Windows 11), unsigned apps are blocked and it has to be turned off.
-Antivirus software may flag the installer. Check the download against `SHA256SUMS` from the same release:
+3. Запустите установщик. Он ставит приложение для текущего пользователя (`%LOCALAPPDATA%\durio`), прав
+   администратора не нужно; данные — в `%APPDATA%\dur.io`.
 
-```powershell
-Get-FileHash .\durio-setup.exe -Algorithm SHA256
-```
+Установщик пока **не подписан**, поэтому Windows предупредит:
 
-The app installs per user (`%LOCALAPPDATA%\durio`, no admin rights) next to an official Stoat install; data is in
-`%APPDATA%\dur.io`. Notifications show the text of decrypted messages; Windows keeps the text of toasts
-unencrypted in its notification database.
+- **SmartScreen** («Система Windows защитила ваш компьютер»): «Подробнее» → «Выполнить в любом случае».
+- **Интеллектуальное управление приложениями** (Smart App Control, Windows 11) неподписанные приложения
+  блокирует без кнопки «всё равно запустить»; если оно включено, установить dur.io можно только выключив его
+  (Безопасность Windows → Управление приложениями/браузером) — решайте сами.
+- Антивирус может отнестись к установщику с подозрением. Сверка `SHA256SUMS` подтверждает, что файл тот, что
+  собрал CI этого репозитория.
 
-## Development
+**Обновления** приходят только из GitHub Releases этого репозитория (через публичный сервис обновлений Electron),
+никогда с сервера чата: приложение скачает новую версию само и предложит перезапуск.
 
-Requirements: Node 22+, pnpm (`corepack enable`), and a checkout of
-[durio-for-web](https://github.com/DakarXYZ/durio-for-web) next to this one (`../for-web`).
+## Первый запуск и аккаунты
+
+- **Адрес сервера.** Сервера по умолчанию нет: на первом экране введите адрес, который дал администратор,
+  например `name.duckdns.org`. Приложение само найдёт API (`https://<адрес>/.well-known/stoat`).
+- **Регистрация по приглашению.** На наших серверах зарегистрироваться можно только по ссылке-приглашению от
+  администратора вида `https://<сервер>/join/<код>`. Ссылка открывает в браузере страницу с адресом сервера и
+  кодом; в приложении на экране регистрации вставьте ссылку целиком или код. Если ссылка от другого сервера,
+  приложение предупредит. Приглашение в сообщество (`/invite/…`) для регистрации не подходит.
+- **Несколько аккаунтов и серверов** — как в Discord: добавьте ещё аккаунт на том же или другом сервере и
+  переключайтесь между ними. Токены, данные и ключи шифрования каждой пары «сервер + пользователь» хранятся
+  отдельно.
+- **Демонстрация экрана** — до 1080p 60 fps: Настройки → «Голос» → «Качество демонстрации» (если сервер
+  разрешает меньше, приложение возьмёт лучшее доступное).
+- Уведомления показывают текст расшифрованных сообщений, а Windows хранит текст уведомлений в своей базе
+  незашифрованным. Чтобы этого не было, включите в настройках уведомлений скрытие текста зашифрованных сообщений.
+
+## Сквозное шифрование (бета)
+
+Шифрование работает в личных сообщениях и группах, если его включил сервер. Внешнего аудита не было — отсюда
+пометка «бета». Памятка сервера: `https://<адрес сервера>/e2ee.html`.
+
+- **Включение** — в настройках чата; выключить нельзя. В зашифрованном чате нет поиска, ботов и вебхуков;
+  звонки сквозным шифрованием не защищены. Сервер видит, кто с кем переписывается, но не текст и не файлы.
+- **Устройство = вход в аккаунт.** Свои устройства — «Настройки» → «Устройства и шифрование (бета)».
+- **Сверка по эмодзи**: «Сверить» у своего другого устройства или у собеседника — оба экрана должны показать
+  одинаковые эмодзи. Только сверенное своё устройство передаст новому ключи прежних сообщений. Незнакомое
+  устройство можно «Заблокировать».
+- **Бэкап ключей**: создайте «Новый ключ восстановления» — он показывается один раз, запишите его или сохраните в
+  файл. Сервер хранит бэкап только зашифрованным и восстановить ключ не может. На новом устройстве — «Ввести ключ
+  восстановления». Бэкап можно выключить (нужен пароль).
+- **Где лежат ключи.** Хранилище ключей каждого аккаунта зашифровано отдельным ключом, который Windows защищает
+  для вашей учётной записи (`%APPDATA%\dur.io\keys`). Это защищает от других пользователей Windows и украденного
+  диска, но не от программ, запущенных под вашей учётной записью. Если этот ключ потерян (переустановка Windows,
+  чужой профиль), приложение покажет мастер «ключи потеряны» — историю вернёт бэкап или другое устройство.
+- **Потеряли устройство**: на другом своём устройстве выйдите из потерянного или заблокируйте его. Другого
+  устройства нет — попросите администратора сервера завершить ваши сеансы. Без ключа восстановления, файла ключей
+  или другого сверенного устройства прежние зашифрованные сообщения прочитать нельзя.
+
+## Администрирование
+
+Для администраторов сервера в настройках есть «Администрирование».
+
+- Нужна двухфакторная аутентификация приложением-аутентификатором (включается в «Мой аккаунт»). Действия
+  администратора открываются **режимом администратора**: введите код из приложения, режим действует 60 минут на
+  этом сеансе; выключить раньше — «Выключить режим администратора».
+- **Приглашения**: срок 1, 4, 12 или 24 часа, для одного человека или для нескольких (до конца срока); список
+  действующих и отзыв. Копируется ссылка `https://<сервер>/join/<код>` — отправляйте её только тому, для кого она.
+- **Сеансы пользователя**: найти по id или `имя#1234` и завершить один или все сеансы (например, после потери
+  телефона). Вместе с сеансом удаляется его устройство шифрования. Сервер записывает каждое действие с id
+  администратора.
+
+## Если что-то не работает
+
+Опишите проблему в [issues](https://github.com/DakarXYZ/durio-for-desktop/issues): версия приложения, версия Windows, что делали и что увидели. Для проблем с шифрованием приложите отчёт диагностики из
+«Устройства и шифрование» — в нём нет сообщений и ключей. Не публикуйте ключ восстановления и файлы ключей.
+
+## Чем отличается от оригинала
+
+- **Интерфейс внутри приложения.** Окно грузит локальную сборку durio-for-web (`vite build --mode desktop`) с
+  `app://durio/` (`src/native/protocol.ts`), а не удалённую страницу. Сборка упакована в asar как `web/`; релиз
+  называет точный коммит for-web (`for-web.lock.json`, `web/durio-web.json` с SHA-256 каждого файла).
+- **Закрыто** (`src/native/security.ts`): навигация и редиректы только внутри `app://durio`, ссылки — во внешнем
+  браузере; разрешения только `media`, `display-capture`, `notifications`, `clipboard-sanitized-write`,
+  `fullscreen`, `speaker-selection` и только для приложения; каждый IPC проверяет, что отправитель —
+  `app://durio/`; заголовок `Content-Security-Policy` — из `desktop/csp.mjs` for-web (копия —
+  `src/native/csp.mjs`, сверяется `scripts/sync-web.mjs`) плюс `frame-ancestors 'none'`.
+- **Сервера по умолчанию нет.** Все серверы и аккаунты — в одной сессии (`persist:main`), данные разделяет for-web.
+  Сборка может подсказать адрес: `DURIO_DEFAULT_SERVER=<host>` (по умолчанию пусто).
+- **Ключи хранилищ E2EE** (`src/native/secrets.ts`): 32 случайных байта на аккаунт под `safeStorage` (DPAPI) в
+  `%APPDATA%\dur.io\keys\<accountKey>.bin`.
+- Счётчик непрочитанного на кнопке панели задач, окно поднимается кликом по уведомлению; Discord Rich Presence
+  выключен; обновления — только из релизов этого репозитория.
+
+Мост для страницы (`window.native`, `window.desktopConfig`) описан в README durio-for-web, раздел «Сборка для
+десктопа».
+
+## Разработка
+
+Нужны Node 22+, pnpm (`corepack enable`) и клон durio-for-web рядом (`../for-web`), подготовленный по его README
+(`install:frozen`, `build:deps` — в том числе `lingui compile`).
 
 ```bash
 pnpm install
 
-# build for-web in desktop mode and copy it into web/ (gitignored)
-pnpm web:build            # = node scripts/sync-web.mjs --build
-pnpm web:sync             # only copy an existing packages/client/dist-desktop
-# --from <dir>: another for-web checkout; --strict: require the pinned commit
+# собрать for-web в режиме десктопа и скопировать в web/ (в git не попадает)
+pnpm web:build            # = node scripts/sync-web.mjs --build (mise build:desktop или те же шаги без mise)
+pnpm web:sync             # только скопировать готовую packages/client/dist-desktop
+# --from <dir>: другой клон for-web; --strict: for-web ровно на закреплённом коммите и без правок
 
-pnpm start                # run unpackaged (DURIO_WEB_DIR=<dir> serves another build)
+pnpm start                # запуск без упаковки (DURIO_WEB_DIR=<dir> — другая сборка)
 pnpm lint && pnpm typecheck && pnpm fmt
-pnpm package              # out/dur.io-win32-x64, also builds .vite/build for the tests
-pnpm test:e2e             # Playwright tests on the unpackaged app (live ones skip without a backend)
-pnpm make                 # Squirrel installer (Windows), zip
+pnpm package              # out/dur.io-win32-x64 (и .vite/build для тестов)
+pnpm test:e2e             # Playwright на неупакованном приложении (живые тесты без бэкенда пропускаются)
+pnpm make                 # установщик Squirrel (Windows), zip
 ```
 
-**E2EE scenarios with a backend (WEB-08, D7):** `tests/e2e/live` runs the real for-web build in the app against
-the stoat-crypto testkit stack, with the testkit's scripted peer (`examples/peer.rs`, a container on the stack
-network) as the other device: register on the server address screen, encrypted DM (text, edits, attachments with
-thumbnails), restart, sign-out, incoming SAS (match and mismatch), first prompt and "new device" notice, backup
-create/replace/rotate/restore, key export/import, session revoked (while running and while closed), lost store
-key, two accounts on two servers; every flow checks for CSP violations, page errors and requests to anything but
-the app and its servers. Needs Docker and the workspace layout (`../stoat-crypto`, `../stoatchat`):
+**Закреплённый for-web.** `for-web.lock.json` — репозиторий и коммит for-web, который войдёт в релиз.
+`scripts/sync-web.mjs` копирует `packages/client/dist-desktop` в `web/`, проверяет, что `src/native/csp.mjs`
+совпадает с CSP for-web и с `<meta>` сборки, и пишет `web/durio-web.json`; с `--strict` — ещё и что for-web на
+закреплённом коммите с чистым деревом. Новый for-web: закоммитить и отправить его, поменять `commit` в
+`for-web.lock.json` отдельным коммитом (`pin for-web <короткий хеш>`), пересобрать при изменениях кода
+(`pnpm web:build`) и проверить `node scripts/sync-web.mjs --strict`.
+
+**Живые тесты** (`tests/e2e/live`): настоящая сборка for-web в приложении против стенда testkit из durio-crypt
+(отладочный бэкенд, второй сервер, TLS-прокси) со скриптовым собеседником (`examples/peer.rs`, контейнер в сети
+стенда): регистрация, зашифрованные ЛС (текст, правки, вложения с миниатюрами), перезапуск, выход, сверка по эмодзи
+(совпало и нет), бэкап и восстановление, файлы ключей, отзыв сеанса, потерянный ключ хранилища, два аккаунта на
+двух серверах, администрирование (режим администратора с кодом 2FA, приглашения на сервере только по
+приглашениям, завершение сеансов). Каждый сценарий проверяет нарушения CSP, ошибки страницы и запросы куда-либо,
+кроме приложения и его серверов. Нужны Docker и раскладка воркспейса (`../stoat-crypto`, `../stoatchat`):
 
 ```bash
 TESTKIT_PUBLIC_PORT=14443 ../stoat-crypto/scripts/testkit-backend.sh up   # + tools/rust-dev/test-env.sh up
-pnpm package && pnpm test:e2e     # ≈ 6 min; https://srv1.localhost:14443 and srv2.localhost are the servers
+pnpm package && pnpm test:e2e     # ≈ 6 мин; серверы — https://srv1.localhost:14443 и srv2.localhost
 ../stoat-crypto/scripts/testkit-backend.sh down && ../tools/rust-dev/test-env.sh down
 ```
 
-The app trusts the proxy's internal CA only through `--ignore-certificate-errors` on the test command line.
-CI: job `e2e-live` (Linux, xvfb, gnome-keyring for safeStorage).
+Внутреннему CA прокси приложение доверяет только через `--ignore-certificate-errors` в командной строке теста.
+В CI — job `e2e-live` (Linux, xvfb, gnome-keyring для safeStorage).
 
-Placeholder icons until there is a brand asset: `node scripts/placeholder-icons.mjs` writes `assets/desktop/`.
+Иконки — заглушки до бренд-ассета: `node scripts/placeholder-icons.mjs` пишет `assets/desktop/`.
 
-### Releases
+### Выпуск
 
-Only CI builds releases (`.github/workflows/durio.yml`): for-web at the pinned commit with `mise build:desktop`,
-`sync-web --strict`, lint, typecheck, Playwright, `pnpm make --platform win32`, `SHA256SUMS`; a `v*` tag drafts a
-GitHub release; the tag must be `v` + the `version` in `package.json` (the first release is `v0.1.0`). Before
-tagging, point `for-web.lock.json` at a pushed for-web commit.
+Релизы собирает только CI (`.github/workflows/durio.yml`): for-web на закреплённом коммите (`mise build:desktop`),
+`sync-web --strict`, lint, typecheck, Playwright, `pnpm make --platform win32`, `SHA256SUMS` (вместе с
+`durio-web.json`). Тег `v*` должен равняться `v` + `version` из `package.json` (первый релиз — `v0.1.0`); по нему
+создаётся **черновик** релиза, который публикуется вручную после проверки сумм. Перед тегом `for-web.lock.json`
+должен указывать на коммит for-web, уже отправленный на GitHub. Linux только собирается в CI, не выпускается.
 
-Code signing is prepared but off: `DURIO_SIGN=1` with `DURIO_SIGN_COMMAND=<program that signs one file>` makes
-forge sign the package, the installer and the `.nupkg` contents through `scripts/windows-sign-hook.cjs` (SignPath
-or signtool).
+Подпись кода подготовлена, но выключена: `DURIO_SIGN=1` и `DURIO_SIGN_COMMAND=<программа, подписывающая один
+файл>` включают подпись пакета, установщика и содержимого `.nupkg` через `scripts/windows-sign-hook.cjs`.
 
-## License
+## Лицензия
 
-AGPL-3.0, like upstream. Stoat is a trademark of its owners; this build is called dur.io.
+[GNU Affero General Public License v3.0](LICENSE), как у оригинала; исходный код каждой сборки — по тегу её релиза
+(и коммиту for-web из `for-web.lock.json`). Copyright © DakarX для изменений dur.io; исходный код оригинала — его
+авторов.
