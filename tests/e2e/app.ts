@@ -103,11 +103,10 @@ export async function launch(
       ".",
       "--hidden",
       `--durio-user-data=${userData}`,
-      // Linux CI: under Playwright Chromium's keyring detection lands on
-      // basic_text (no encryption, refused by the app) although gnome-keyring
-      // runs; name the keyring
+      // Linux: Playwright's loader sets --password-store=basic (no
+      // encryption, refused by the app); devOverrides puts the keyring back
       ...(process.platform === "linux"
-        ? ["--password-store=gnome-libsecret"]
+        ? ["--durio-password-store=gnome-libsecret"]
         : []),
       ...(options.args ?? []),
     ],
