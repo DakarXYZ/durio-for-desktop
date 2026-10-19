@@ -54,6 +54,17 @@ test("register, encrypted DM with a testkit device, restart, sign out", async ()
       timeout: 30_000,
     });
 
+    // Q63: an emoji is an image packaged with the app, not from static.stoat.chat
+    // (expectClean below fails on any request outside the app and its servers)
+    await peer.send("peer", channel, `emoji ${tag} \u{1F600}`);
+    const emoji = s.page.locator('img.emoji[src="/emoji/twemoji/1f600.svg"]');
+    await expect(emoji.first()).toBeVisible({ timeout: 30_000 });
+    await expect
+      .poll(() =>
+        emoji.first().evaluate((img: HTMLImageElement) => img.naturalWidth),
+      )
+      .toBeGreaterThan(0);
+
     // app → peer, the peer sees the app's device (not verified)
     await ui.sendText(s.page, `hello peer ${tag}`);
     const sent = await peer.waitText("peer", channel, {

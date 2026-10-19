@@ -73,3 +73,38 @@ test("the RNNoise worklet and its wasm load under the CSP", async () => {
   await ctx.app.close();
   cleanUp(ctx.userData);
 });
+
+test("emoji images come from the package, not static.stoat.chat (Q63)", async () => {
+  const ctx = await launch();
+  const requests: string[] = [];
+  ctx.page.on("request", (request) => requests.push(request.url()));
+  await expect(ctx.page.locator("#server-address")).toBeVisible({
+    timeout: 20_000,
+  });
+
+  // the URL UnicodeEmoji renders for 😀 and for a ZWJ sequence that keeps U+FE0F
+  const sizes = await ctx.page.evaluate(() =>
+    Promise.all(
+      ["1f600", "1f636-200d-1f32b-fe0f"].map(
+        (name) =>
+          new Promise<number>((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve(img.naturalWidth);
+            img.onerror = () => resolve(0);
+            img.src = `/emoji/twemoji/${name}.svg`;
+          }),
+      ),
+    ),
+  );
+  expect(sizes.every((width) => width > 0)).toBe(true);
+
+  expect(
+    ctx.console.filter((line) =>
+      /Content Security Policy|Refused to/i.test(line),
+    ),
+  ).toEqual([]);
+  expect(requests.filter((url) => !url.startsWith("app://durio/"))).toEqual([]);
+
+  await ctx.app.close();
+  cleanUp(ctx.userData);
+});
