@@ -242,7 +242,7 @@ jobs:
       - name: Display and keyring for Electron
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends xvfb dbus-x11 gnome-keyring
+          sudo apt-get install -y --no-install-recommends xvfb dbus-x11 gnome-keyring libsecret-1-0 libsecret-tools
           # Ubuntu 24.04 blocks the user namespaces of Chromium's sandbox
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
@@ -251,11 +251,27 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
           pnpm package
-          # Chromium picks the keyring by desktop: with none set safeStorage has no keyring
-          # and the app refuses to keep keys ("OS encryption is not available")
+          # safeStorage keeps its key in the keyring's default collection. Headless there is no
+          # prompt to create one: --unlock makes the "login" keyring, this file makes it the
+          # default. Chromium picks the keyring by desktop, so GNOME is set as well.
+          mkdir -p ~/.local/share/keyrings
+          printf login > ~/.local/share/keyrings/default
+          cat > "$RUNNER_TEMP/safestorage.cjs" <<'EOF'
+          const { app, safeStorage } = require("electron");
+          app.whenReady().then(() => {
+            console.log("safeStorage: available=" + safeStorage.isEncryptionAvailable() +
+              " backend=" + safeStorage.getSelectedStorageBackend());
+            app.quit();
+          });
+          EOF
           dbus-run-session -- sh -c '
+            set -e
             eval "$(echo -n durio | gnome-keyring-daemon --unlock --components=secrets)"
             export GNOME_KEYRING_CONTROL XDG_CURRENT_DESKTOP=GNOME
+            echo -n probe | secret-tool store --label=durio-ci durio ci
+            test "$(secret-tool lookup durio ci)" = probe || { echo "keyring: store/lookup failed" >&2; exit 1; }
+            echo "keyring: store/lookup ok"
+            xvfb-run -a pnpm exec electron "$RUNNER_TEMP/safestorage.cjs" || true
             xvfb-run -a pnpm test:e2e'
 
       - name: Server logs
