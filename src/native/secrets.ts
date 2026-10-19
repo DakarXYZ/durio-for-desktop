@@ -48,7 +48,12 @@ function keyFile(accountKey: string) {
 
 function assertEncryption() {
   if (!safeStorage.isEncryptionAvailable()) {
-    throw new Error("OS encryption is not available");
+    // Linux: name the keyring Chromium picked, the cause is in the desktop setup
+    const backend =
+      process.platform === "linux"
+        ? ` (keyring: ${safeStorage.getSelectedStorageBackend()})`
+        : "";
+    throw new Error(`OS encryption is not available${backend}`);
   }
 
   // without a keyring Linux falls back to a hardcoded password: refuse it

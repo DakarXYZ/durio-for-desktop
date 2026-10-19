@@ -257,11 +257,16 @@ jobs:
           mkdir -p ~/.local/share/keyrings
           printf login > ~/.local/share/keyrings/default
           cat > "$RUNNER_TEMP/safestorage.cjs" <<'EOF'
-          const { app, safeStorage } = require("electron");
+          // as the app under test: its own profile directory, a window, a later call
+          const { app, BrowserWindow, safeStorage } = require("electron");
+          const os = require("node:os"), fs = require("node:fs"), path = require("node:path");
+          app.setPath("userData", fs.mkdtempSync(path.join(os.tmpdir(), "durio-ss-")));
+          const report = (when) => console.log("safeStorage " + when + ": available=" +
+            safeStorage.isEncryptionAvailable() + " backend=" + safeStorage.getSelectedStorageBackend());
           app.whenReady().then(() => {
-            console.log("safeStorage: available=" + safeStorage.isEncryptionAvailable() +
-              " backend=" + safeStorage.getSelectedStorageBackend());
-            app.quit();
+            report("at ready");
+            new BrowserWindow({ show: false });
+            setTimeout(() => { report("after 1 s"); app.quit(); }, 1000);
           });
           EOF
           dbus-run-session -- sh -c '
