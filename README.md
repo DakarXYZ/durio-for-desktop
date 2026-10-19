@@ -60,9 +60,26 @@ pnpm web:sync             # only copy an existing packages/client/dist-desktop
 pnpm start                # run unpackaged (DURIO_WEB_DIR=<dir> serves another build)
 pnpm lint && pnpm typecheck && pnpm fmt
 pnpm package              # out/dur.io-win32-x64, also builds .vite/build for the tests
-pnpm test:e2e             # Playwright security tests on the unpackaged app, no backend
+pnpm test:e2e             # Playwright tests on the unpackaged app (live ones skip without a backend)
 pnpm make                 # Squirrel installer (Windows), zip
 ```
+
+**E2EE scenarios with a backend (WEB-08, D7):** `tests/e2e/live` runs the real for-web build in the app against
+the stoat-crypto testkit stack, with the testkit's scripted peer (`examples/peer.rs`, a container on the stack
+network) as the other device: register on the server address screen, encrypted DM (text, edits, attachments with
+thumbnails), restart, sign-out, incoming SAS (match and mismatch), first prompt and "new device" notice, backup
+create/replace/rotate/restore, key export/import, session revoked (while running and while closed), lost store
+key, two accounts on two servers; every flow checks for CSP violations, page errors and requests to anything but
+the app and its servers. Needs Docker and the workspace layout (`../stoat-crypto`, `../stoatchat`):
+
+```bash
+TESTKIT_PUBLIC_PORT=14443 ../stoat-crypto/scripts/testkit-backend.sh up   # + tools/rust-dev/test-env.sh up
+pnpm package && pnpm test:e2e     # ≈ 6 min; https://srv1.localhost:14443 and srv2.localhost are the servers
+../stoat-crypto/scripts/testkit-backend.sh down && ../tools/rust-dev/test-env.sh down
+```
+
+The app trusts the proxy's internal CA only through `--ignore-certificate-errors` on the test command line.
+CI: job `e2e-live` (Linux, xvfb, gnome-keyring for safeStorage).
 
 Placeholder icons until there is a brand asset: `node scripts/placeholder-icons.mjs` writes `assets/desktop/`.
 

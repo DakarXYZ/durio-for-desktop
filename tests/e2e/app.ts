@@ -78,10 +78,11 @@ export interface Launched {
 /**
  * Start the app (`.vite/build/main.js`, hidden window, separate profile)
  * @param options `webDir`: serve this instead of `web/` (unset: the real build);
- *   `userData`: reuse a profile (restart tests)
+ *   `userData`: reuse a profile (restart tests); `args`: extra command line
+ *   switches (the live tests trust the test proxy's certificate this way)
  */
 export async function launch(
-  options: { webDir?: string; userData?: string } = {},
+  options: { webDir?: string; userData?: string; args?: string[] } = {},
 ): Promise<Launched> {
   if (!existsSync(path.join(ROOT, ".vite", "build", "main.js"))) {
     throw new Error("no .vite/build/main.js: run `pnpm package` first");
@@ -98,7 +99,12 @@ export async function launch(
   else delete env.DURIO_WEB_DIR;
 
   const app = await electron.launch({
-    args: [".", "--hidden", `--durio-user-data=${userData}`],
+    args: [
+      ".",
+      "--hidden",
+      `--durio-user-data=${userData}`,
+      ...(options.args ?? []),
+    ],
     cwd: ROOT,
     env,
   });
