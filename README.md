@@ -87,7 +87,8 @@ Placeholder icons until there is a brand asset: `node scripts/placeholder-icons.
 
 Only CI builds releases (`.github/workflows/durio.yml`): for-web at the pinned commit with `mise build:desktop`,
 `sync-web --strict`, lint, typecheck, Playwright, `pnpm make --platform win32`, `SHA256SUMS`; a `v*` tag drafts a
-GitHub release. Before tagging, point `for-web.lock.json` at a pushed for-web commit.
+GitHub release; the tag must be `v` + the `version` in `package.json` (the first release is `v0.1.0`). Before
+tagging, point `for-web.lock.json` at a pushed for-web commit.
 
 Code signing is prepared but off: `DURIO_SIGN=1` with `DURIO_SIGN_COMMAND=<program that signs one file>` makes
 forge sign the package, the installer and the `.nupkg` contents through `scripts/windows-sign-hook.cjs` (SignPath

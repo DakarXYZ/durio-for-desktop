@@ -1,7 +1,7 @@
 {
   "name": "durio",
   "productName": "dur.io",
-  "version": "1.5.4",
+  "version": "0.1.0",
   "description": "dur.io for Windows: a fork of Stoat for Desktop with end-to-end encrypted DMs",
   "main": ".vite/build/main.js",
   "repository": "https://github.com/DakarXYZ/durio-for-desktop",

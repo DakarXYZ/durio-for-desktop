@@ -72,6 +72,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # the installer and the nupkg take their version from package.json, the release its tag
+      - name: The tag is the package version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          version="v$(jq -r .version package.json)"
+          if [ "$GITHUB_REF_NAME" != "$version" ]; then
+            echo "tag $GITHUB_REF_NAME, package.json $version" >&2
+            exit 1
+          fi
+
       - uses: actions/download-artifact@v4
         with:
           name: web
