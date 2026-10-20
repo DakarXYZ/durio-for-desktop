@@ -164,7 +164,8 @@ jobs:
     name: E2E with the testkit backend
     needs: web
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
-    runs-on: ubuntu-latest
+    # ubuntu-24.04, not -latest: on the Ubuntu 26 runners (kernel 6.19+) MongoDB refuses to start (SERVER-121912)
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     env:
       TESTKIT_PUBLIC_PORT: "14443"
