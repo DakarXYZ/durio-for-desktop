@@ -235,13 +235,17 @@ export async function confirmMfa(page: Page, password: string) {
  * @param dir Directory
  */
 export async function downloadsTo(s: Session, dir: string) {
-  await s.app.evaluate(({ session }, target) => {
-    session
-      .fromPartition("persist:main")
-      .on("will-download", (_event, item) =>
-        item.setSavePath(`${target}\\${item.getFilename()}`),
-      );
-  }, dir);
+  // the separator of this OS: with a fixed "\" Linux saved the file next to the folder
+  await s.app.evaluate(
+    ({ session }, { target, sep }) => {
+      session
+        .fromPartition("persist:main")
+        .on("will-download", (_event, item) =>
+          item.setSavePath(`${target}${sep}${item.getFilename()}`),
+        );
+    },
+    { target: dir, sep: path.sep },
+  );
 }
 
 /** What the app stores per account, seen from the page and the profile */
