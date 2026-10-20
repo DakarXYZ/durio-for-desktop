@@ -226,6 +226,9 @@ jobs:
             <<"revolt.default">>), topic, true, false, false, [], <<"rabbituser">>).'
 
       - name: Testkit stack (debug backend, server 2, TLS proxy, peer)
+        # two rustc at a time: with four the mongo was gone after the build (likely the OOM killer)
+        env:
+          CARGO_BUILD_JOBS: 2
         run: stoat-crypto/scripts/testkit-backend.sh up
 
       - uses: pnpm/action-setup@v4
