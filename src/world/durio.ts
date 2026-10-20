@@ -22,4 +22,18 @@ export const durioBridge = {
     default: () =>
       ipcRenderer.invoke("servers:default") as Promise<string | undefined>,
   },
+
+  /** The newest pictures of "Pictures" and "Pictures/Screenshots" for the attach panel */
+  recentImages: {
+    list: () =>
+      ipcRenderer.invoke("recentImages:list") as Promise<
+        { id: string; name: string; thumbnail: string }[]
+      >,
+    read: (id: string) =>
+      ipcRenderer.invoke("recentImages:read", id) as Promise<{
+        name: string;
+        type: string;
+        data: Uint8Array;
+      }>,
+  },
 };

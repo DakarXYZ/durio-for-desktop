@@ -14,6 +14,7 @@ import "./native/badges";
 import { config } from "./native/config";
 import { initDiscordRpc } from "./native/discordRpc";
 import { handleAppProtocol, registerAppScheme } from "./native/protocol";
+import { initRecentImages } from "./native/recentImages";
 import { initSecrets } from "./native/secrets";
 import { guardWebContents, lockDownSession } from "./native/security";
 import { initServers } from "./native/servers";
@@ -98,6 +99,7 @@ if (acquiredLock) {
     handleAppProtocol(ses);
     initServers();
     initSecrets();
+    initRecentImages();
 
     // create window and application contexts
     createMainWindow();
