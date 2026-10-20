@@ -223,6 +223,7 @@ function call(
   method: string,
   route: string,
   body?: unknown,
+  token?: string,
 ): Promise<{
   status: number;
   body: { type?: string } & Record<string, unknown>;
@@ -237,6 +238,7 @@ function call(
         headers: {
           host: server,
           ...(data ? { "content-type": "application/json" } : {}),
+          ...(token ? { "x-session-token": token } : {}),
         },
         servername: server.split(":")[0],
         rejectUnauthorized: false,
@@ -322,54 +324,44 @@ async function inviteOnlyServer2(inviteOnly: boolean) {
     .toMatchObject({ invite_only: inviteOnly });
 }
 
-test("admin invite links: single use, multi-use, revoked", async () => {
-  test.setTimeout(420_000);
+test("invite-only sign-up with a server invite, which then opens to join", async () => {
+  test.setTimeout(300_000);
   const peer = new Peer();
-  let admin: ui.Session | undefined;
   let fresh: ui.Session | undefined;
   const tag = Date.now().toString(36);
-  const register = (n: string, invite: string) =>
-    call(live.server2, "POST", "/auth/account/create", {
-      email: `inv-${tag}-${n}@testkit.invalid`,
-      password: `inv-${tag}-password`,
-      invite,
-    });
 
   try {
-    // the admin of server 2, made before sign-up needs an invite
-    const account = await peer.register("admin2", "admin", 2);
-    makeAdmin(account.user_id, "durio-test-mongo2");
+    // a server on server 2 and a standard invite to it, made before sign-up needs one
+    const owner = await peer.register("owner2", "owner", 2);
+    const created = await call(
+      live.server2,
+      "POST",
+      "/servers/create",
+      { name: `Invited ${tag}` },
+      owner.token,
+    );
+    expect(created.status, JSON.stringify(created.body)).toBe(200);
+    const channel = (created.body.channels as { _id: string }[])[0]._id;
+    const invite = await call(
+      live.server2,
+      "POST",
+      `/channels/${channel}/invites`,
+      {},
+      owner.token,
+    );
+    expect(invite.status, JSON.stringify(invite.body)).toBe(200);
+    const code = invite.body._id as string;
     await inviteOnlyServer2(true);
 
-    admin = await ui.start();
-    const page = admin.page;
-    const app = admin.app;
-    await ui.connect(page, live.server2);
-    await ui.login(page, account.email, account.password);
-    await ui.dismissFirstPrompt(page);
-    const secret = await enableTotp(peer, "admin2", account.password);
-    await ui.openSettings(page, "Administration");
-    await confirmTotp(page, secret);
-    await expect(page.getByText(/^Admin mode is on until/)).toBeVisible({
-      timeout: 20_000,
+    // an unknown code is still refused
+    const wrong = await call(live.server2, "POST", "/auth/account/create", {
+      email: `inv-${tag}-wrong@testkit.invalid`,
+      password: `inv-${tag}-password`,
+      invite: "nosuchcode",
     });
+    expect(wrong.body.type).toBe("InvalidInvite");
 
-    // single use, 1 hour: the link is copied
-    const clipboard = (): Promise<string> =>
-      app.evaluate(({ clipboard }) => clipboard.readText());
-    await page.getByRole("button", { name: "1 h", exact: true }).click();
-    await page.getByRole("button", { name: "Create and copy link" }).click();
-    await expect(page.getByText("Invite link copied.")).toBeVisible({
-      timeout: 20_000,
-    });
-    const single = await clipboard();
-    expect(single.startsWith(`https://${live.server2}/join/`)).toBe(true);
-    const singleCode = single.split("/").pop()!;
-    await expect(page.locator(`[data-invite="${singleCode}"]`)).toContainText(
-      "single use",
-    );
-
-    // a new account in a fresh profile, the link pasted
+    // sign-up with the invite link pasted; once in, the invite opens: one click to join
     fresh = await ui.start();
     await ui.connect(fresh.page, live.server2);
     await ui.register(
@@ -377,46 +369,21 @@ test("admin invite links: single use, multi-use, revoked", async () => {
       `inv-${tag}@testkit.invalid`,
       `inv-${tag}-password`,
       `inv_${tag}`,
-      single,
+      `https://${live.server2}/invite/${code}`,
     );
     await ui.dismissFirstPrompt(fresh.page);
+    await expect(fresh.page.getByText(`Invited ${tag}`).first()).toBeVisible({
+      timeout: 30_000,
+    });
+    await ui.dialogButton(fresh.page, "Join").click();
+    await expect(
+      fresh.page.getByRole("button", { name: "Join", exact: true }),
+    ).toHaveCount(0, { timeout: 20_000 });
+    const joined = await call(live.server2, "GET", `/invites/${code}`);
+    expect(joined.body.member_count).toBe(2);
     ui.expectClean(fresh);
-    await ui.stop(fresh);
-    fresh = undefined;
-
-    // used up
-    const again = await register("again", singleCode);
-    expect(again.status).toBeGreaterThanOrEqual(400);
-    expect(again.body.type).toBe("InvalidInvite");
-
-    // multi-use: counts its uses
-    await page.locator('mdui-checkbox[name="admin-invite-multi"]').click();
-    await page.getByRole("button", { name: "Create and copy link" }).click();
-    await expect.poll(clipboard, { timeout: 20_000 }).not.toBe(single);
-    const multiCode = (await clipboard()).split("/").pop()!;
-    expect((await register("m1", multiCode)).status).toBe(204);
-    expect((await register("m2", multiCode)).status).toBe(204);
-
-    await ui.closeSettings(page);
-    await ui.openSettings(page, "Administration");
-    const card = page.locator(`[data-invite="${multiCode}"]`);
-    await expect(card).toContainText("multi-use", { timeout: 20_000 });
-    await expect(card).toContainText("accounts made: 2");
-
-    // revoked: no more sign-ups
-    await card.getByRole("button", { name: "Revoke" }).click();
-    await page
-      .locator(".dialog")
-      .getByRole("button", { name: "Revoke", exact: true })
-      .click();
-    await expect(card).toHaveCount(0, { timeout: 20_000 });
-    const revoked = await register("m3", multiCode);
-    expect(revoked.status).toBeGreaterThanOrEqual(400);
-    expect(revoked.body.type).toBe("InvalidInvite");
-    ui.expectClean(admin);
   } finally {
     if (fresh) await ui.stop(fresh);
-    if (admin) await ui.stop(admin);
     peer.close();
     await inviteOnlyServer2(false);
   }
