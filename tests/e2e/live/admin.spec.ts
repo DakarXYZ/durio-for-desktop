@@ -341,6 +341,7 @@ test("invite-only sign-up with a server invite, which then opens to join", async
       owner.token,
     );
     expect(created.status, JSON.stringify(created.body)).toBe(200);
+    const server = (created.body.server as { _id: string })._id;
     const channel = (created.body.channels as { _id: string }[])[0]._id;
     const invite = await call(
       live.server2,
@@ -379,8 +380,17 @@ test("invite-only sign-up with a server invite, which then opens to join", async
     await expect(
       fresh.page.getByRole("button", { name: "Join", exact: true }),
     ).toHaveCount(0, { timeout: 20_000 });
-    const joined = await call(live.server2, "GET", `/invites/${code}`);
-    expect(joined.body.member_count).toBe(2);
+    // (not member_count of GET /invites: the server caches it for an hour, and the app
+    // fetched the invite before joining)
+    const members = await call(
+      live.server2,
+      "GET",
+      `/servers/${server}/members`,
+      undefined,
+      owner.token,
+    );
+    expect(members.status, JSON.stringify(members.body)).toBe(200);
+    expect((members.body.members as unknown[]).length).toBe(2);
     ui.expectClean(fresh);
   } finally {
     if (fresh) await ui.stop(fresh);

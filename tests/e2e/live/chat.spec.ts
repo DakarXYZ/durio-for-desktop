@@ -96,7 +96,9 @@ test("register, encrypted DM with a testkit device, restart, sign out", async ()
     // app → peer: an image, encrypted with a thumbnail made by the app
     const image = ui.png(640, 480);
     const chooser = s.page.waitForEvent("filechooser");
+    // "+" opens the attach panel, its "Files" asks for any file
     await s.page.locator("button", { hasText: /^add$/ }).last().click();
+    await s.page.locator("#floating button", { hasText: /Files$/ }).click();
     await (
       await chooser
     ).setFiles({
