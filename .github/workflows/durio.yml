@@ -164,8 +164,7 @@ jobs:
     name: E2E with the testkit backend
     needs: web
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
-    # ubuntu-24.04, not -latest: on the Ubuntu 26 runners (kernel 6.19+) MongoDB refuses to start (SERVER-121912)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
       TESTKIT_PUBLIC_PORT: "14443"
@@ -212,7 +211,7 @@ jobs:
           docker run -d --name durio-test-redis --network durio-test redis:7-alpine
           docker run -d --name durio-test-rabbit --network durio-test \
             -e RABBITMQ_DEFAULT_USER=rabbituser -e RABBITMQ_DEFAULT_PASS=rabbitpass rabbitmq:4-alpine
-          docker run -d --name durio-test-mongo --network durio-test mongo:8 --replSet rs0 --bind_ip_all
+          docker run -d --name durio-test-mongo --network durio-test mongo:7.0.45 --replSet rs0 --bind_ip_all
           for i in $(seq 60); do
             docker exec durio-test-mongo mongosh --quiet --eval \
               'try { rs.status().ok } catch (e) { rs.initiate({_id: "rs0", members: [{_id: 0, host: "durio-test-mongo:27017"}]}).ok }' \
