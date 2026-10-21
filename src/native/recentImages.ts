@@ -31,6 +31,12 @@ const THUMBNAIL = 160;
 /** Ids of the last listing → absolute paths */
 let listed = new Map<string, string>();
 
+/**
+ * Made thumbnails by path: making one runs on the main thread and holds the window
+ * (the interface blinks), so a picture that did not change is not done again
+ */
+const thumbnails = new Map<string, { time: number; thumbnail: string }>();
+
 export interface RecentImage {
   id: string;
   name: string;
@@ -85,7 +91,15 @@ async function recentImages(): Promise<RecentImage[]> {
 
   const next = new Map<string, string>();
   const images: RecentImage[] = [];
-  for (const { file, name } of found) {
+  for (const { file, name, time } of found) {
+    const made = thumbnails.get(file);
+    if (made?.time === time) {
+      const id = randomUUID();
+      next.set(id, file);
+      images.push({ id, name, thumbnail: made.thumbnail });
+      continue;
+    }
+
     const image = await nativeImage
       .createThumbnailFromPath(file, { width: THUMBNAIL, height: THUMBNAIL })
       .catch(() =>
@@ -94,8 +108,15 @@ async function recentImages(): Promise<RecentImage[]> {
     if (image.isEmpty()) continue;
 
     const id = randomUUID();
+    const thumbnail = image.toDataURL();
+    thumbnails.set(file, { time, thumbnail });
     next.set(id, file);
-    images.push({ id, name, thumbnail: image.toDataURL() });
+    images.push({ id, name, thumbnail });
+  }
+
+  // only the shown pictures are kept
+  for (const file of thumbnails.keys()) {
+    if (!found.some((picture) => picture.file === file)) thumbnails.delete(file);
   }
 
   listed = next;
@@ -119,6 +140,9 @@ async function readRecentImage(id: unknown) {
 }
 
 export function initRecentImages() {
+  // thumbnails ready before the first "+": it shows the pictures at once
+  setTimeout(() => recentImages().catch(() => {}), 10_000);
+
   handleTrusted("recentImages:list", () => recentImages());
   handleTrusted("recentImages:read", (_event, id: unknown) =>
     readRecentImage(id),
