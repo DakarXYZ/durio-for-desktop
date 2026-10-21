@@ -70,9 +70,9 @@ test("two accounts on two servers stay apart", async () => {
 
     // back to the first account: its own DM decrypts, nothing of server 2 shows
     // the user menu: the own avatar at the top of the server list (its tooltip
-    // wrapper carries the username as the label)
+    // wrapper carries the username, without the #discriminator, as the label)
     await s.page
-      .getByLabel(two.desk.username, { exact: true })
+      .getByLabel(two.desk.username.split("#")[0], { exact: true })
       .locator("a")
       .first()
       .click();
