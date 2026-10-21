@@ -69,7 +69,13 @@ test("two accounts on two servers stay apart", async () => {
     expect(first.crypto).not.toEqual(second.crypto);
 
     // back to the first account: its own DM decrypts, nothing of server 2 shows
-    await s.page.mouse.click(35, 140);
+    // the user menu: the own avatar at the top of the server list (its tooltip
+    // wrapper carries the username as the label)
+    await s.page
+      .getByLabel(two.desk.username, { exact: true })
+      .locator("a")
+      .first()
+      .click();
     await s.page.getByText("Switch Accounts").click();
     await s.page
       .getByRole("button", { name: new RegExp(`desk_.* @ ${live.server1}`) })
