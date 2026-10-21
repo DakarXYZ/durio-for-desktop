@@ -1,17 +1,61 @@
-# durio-for-desktop — dur.io для Windows
+<p align="center">
+  <img src="docs/images/durio.png" width="128" alt="dur.io">
+</p>
 
-**English summary.** Windows client of the **dur.io** messenger (Electron). The interface
+<h1 align="center">dur.io для Windows</h1>
+
+<p align="center">
+  <b>Свой Discord: серверы, каналы, голос и демонстрация экрана — на сервере, который принадлежит вам.</b><br>
+  <a href="https://github.com/DakarXYZ/durio-for-desktop/releases/latest">Скачать для Windows</a> ·
+  <a href="https://github.com/DakarXYZ/durio-for-android/releases/latest">Android</a> ·
+  <a href="https://github.com/DakarXYZ/durio-self-hosted">Поднять свой сервер</a>
+</p>
+
+**English summary.** **dur.io** is a self-hosted alternative to Discord: communities with text and voice
+channels, roles, DMs and groups, screen sharing up to 1080p60, 100 MB uploads, polls, and end-to-end encryption
+(beta) of DMs and groups. This is the Windows client (Electron). Its interface
 ([durio-for-web](https://github.com/DakarXYZ/durio-for-web)) ships inside the app and is never loaded from a
-server, so a hijacked chat server cannot swap the code that holds the encryption keys. Accounts on several servers,
-end-to-end encryption (beta) of DMs and groups with keys protected by Windows per account, an administration page
-with a 2FA admin mode. Install from [GitHub Releases](https://github.com/DakarXYZ/durio-for-desktop/releases).
-Licensed under AGPL-3.0.
+server, so a hijacked chat server cannot swap the code that holds the encryption keys. Install from
+[GitHub Releases](https://github.com/DakarXYZ/durio-for-desktop/releases). Licensed under AGPL-3.0.
 
-Windows-клиент мессенджера **dur.io**. Автор и владелец форка — DakarX
-([GitHub DakarXYZ](https://github.com/DakarXYZ)).
+![dur.io: канал сервера, участники, реакции и вложения](docs/images/chat.png)
 
-Основано на [stoatchat/for-desktop](https://github.com/stoatchat/for-desktop). dur.io — независимый форк и не
-связан с проектом Stoat; название и логотип Stoat — товарные знаки их владельцев.
+## Что такое dur.io
+
+**dur.io** — мессенджер для своих сообществ, аналог и замена Discord. Всё привычное на месте: серверы с
+текстовыми и голосовыми каналами, роли и права, личные сообщения и группы, реакции, ответы, закрепы, поиск. Разница
+в том, **чьё это всё**: сервер dur.io ставится на ваш VPS по пошаговой инструкции
+([durio-self-hosted](https://github.com/DakarXYZ/durio-self-hosted)), переписка и файлы лежат у вас, а не на чужой
+платформе, — без рекламы, трекеров и чужих правил.
+
+| | dur.io | Discord |
+| --- | --- | --- |
+| Где хранятся сообщения и файлы | на вашем сервере | на серверах Discord |
+| Сквозное шифрование ЛС и групп | есть (бета) | нет |
+| Вложения | до 100 МБ (настраивается на сервере) | 10 МБ без Nitro |
+| Демонстрация экрана | до 1080p 60 fps бесплатно | 1080p60 — с Nitro |
+| Реклама и трекеры | нет | есть |
+| Исходный код | открыт (AGPL-3.0) | закрыт |
+
+Что умеет:
+
+- **Сообщества** — серверы, текстовые и голосовые каналы, категории, роли и права, приглашения одной ссылкой
+  `https://<сервер>/invite/<код>` (и для регистрации, и для входа на сервер).
+- **Голос и экран** — голосовые каналы и звонки, демонстрация экрана до 1080p 60 fps.
+- **Сообщения** — ответы, реакции, правки, закрепы, вложения до 100 МБ, панель «+» с последними картинками из
+  «Изображений» и «Снимков экрана», **опросы** (один или несколько ответов, с возможностью изменить голос или без).
+- **Сквозное шифрование (бета)** личных сообщений и групп: сервер видит только шифротекст.
+- **Несколько аккаунтов и серверов** в одном окне, как в Discord, только серверы — разные.
+- **Везде**: Windows (этот репозиторий), [Android](https://github.com/DakarXYZ/durio-for-android) и браузер —
+  каждый сервер dur.io сам отдаёт веб-версию по адресу `https://<сервер>/web/app/`.
+
+<p align="center">
+  <img src="docs/images/sidebar.png" width="466" alt="Список каналов сервера">
+</p>
+
+Автор и владелец — DakarX ([GitHub DakarXYZ](https://github.com/DakarXYZ)). Основано на
+[stoatchat/for-desktop](https://github.com/stoatchat/for-desktop). dur.io — независимый форк и не связан ни с
+проектом Stoat, ни с Discord; названия и логотипы Stoat и Discord — товарные знаки их владельцев.
 
 ## Установка
 
@@ -43,10 +87,11 @@ Windows-клиент мессенджера **dur.io**. Автор и владе
 
 - **Адрес сервера.** Сервера по умолчанию нет: на первом экране введите адрес, который дал администратор,
   например `name.duckdns.org`. Приложение само найдёт API (`https://<адрес>/.well-known/stoat`).
-- **Регистрация по приглашению.** На наших серверах зарегистрироваться можно только по ссылке-приглашению от
-  администратора вида `https://<сервер>/join/<код>`. Ссылка открывает в браузере страницу с адресом сервера и
-  кодом; в приложении на экране регистрации вставьте ссылку целиком или код. Если ссылка от другого сервера,
-  приложение предупредит. Приглашение в сообщество (`/invite/…`) для регистрации не подходит.
+- **Регистрация по приглашению.** На наших серверах зарегистрироваться можно только по приглашению — обычной
+  ссылке `https://<сервер>/invite/<код>` из настроек сервера («Приглашения» или «Пригласить» у канала). Ссылка
+  открывает в браузере страницу с адресом сервера и кодом; в приложении на экране регистрации вставьте ссылку
+  целиком или код, после выбора имени приложение само откроет приглашение. Уже есть аккаунт — «+» →
+  «Присоединиться к серверу». Если ссылка от другого сервера, приложение предупредит.
 - **Несколько аккаунтов и серверов** — как в Discord: добавьте ещё аккаунт на том же или другом сервере и
   переключайтесь между ними. Токены, данные и ключи шифрования каждой пары «сервер + пользователь» хранятся
   отдельно.
@@ -84,8 +129,6 @@ Windows-клиент мессенджера **dur.io**. Автор и владе
 - Нужна двухфакторная аутентификация приложением-аутентификатором (включается в «Мой аккаунт»). Действия
   администратора открываются **режимом администратора**: введите код из приложения, режим действует 60 минут на
   этом сеансе; выключить раньше — «Выключить режим администратора».
-- **Приглашения**: срок 1, 4, 12 или 24 часа, для одного человека или для нескольких (до конца срока); список
-  действующих и отзыв. Копируется ссылка `https://<сервер>/join/<код>` — отправляйте её только тому, для кого она.
 - **Сеансы пользователя**: найти по id или `имя#1234` и завершить один или все сеансы (например, после потери
   телефона). Вместе с сеансом удаляется его устройство шифрования. Сервер записывает каждое действие с id
   администратора.
