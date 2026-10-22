@@ -13,6 +13,7 @@ import { initAutoLaunch } from "./native/autoLaunch";
 import "./native/badges";
 import { config } from "./native/config";
 import { initDiscordRpc } from "./native/discordRpc";
+import { sendEmbedReferer } from "./native/embeds";
 import { handleAppProtocol, registerAppScheme } from "./native/protocol";
 import { initRecentImages } from "./native/recentImages";
 import { initSecrets } from "./native/secrets";
@@ -97,6 +98,7 @@ if (acquiredLock) {
     lockDownSession(ses);
     lockDownSession(session.defaultSession);
     handleAppProtocol(ses);
+    sendEmbedReferer(ses);
     initServers();
     initSecrets();
     initRecentImages();
