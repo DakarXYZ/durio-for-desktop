@@ -157,7 +157,7 @@ jobs:
       - run: pnpm make --platform linux --targets @electron-forge/maker-zip
 
   e2e-live:
-    # WEB-08 / D7: the E2EE scenarios (tests/e2e/live) against the stoat-crypto testkit
+    # WEB-08 / D7: the E2EE scenarios (tests/e2e/live) against the durio-crypt testkit
     # stack — our backend built from source, the scripted peer as the other device. Docker
     # runs only on the Linux runners: the app runs under xvfb, safeStorage gets a
     # gnome-keyring (the app refuses the plain-text store). Not a gate for releases yet.
@@ -176,7 +176,7 @@ jobs:
         with:
           tool-cache: true
 
-      # the workspace layout testkit-backend.sh expects: stoatchat/ next to stoat-crypto/
+      # the workspace layout testkit-backend.sh expects: durio-chat/ next to durio-crypt/
       - uses: actions/checkout@v4
         with:
           path: for-desktop
@@ -184,12 +184,12 @@ jobs:
         with:
           repository: ${{ github.repository_owner }}/durio-chat
           ref: ${{ vars.DURIO_CHAT_REF || 'main' }}
-          path: stoatchat
+          path: durio-chat
       - uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/durio-crypt
           ref: ${{ vars.DURIO_CRYPT_REF || 'main' }}
-          path: stoat-crypto
+          path: durio-crypt
 
       - uses: actions/download-artifact@v4
         with:
@@ -229,7 +229,7 @@ jobs:
         # two rustc at a time: with four the mongo was gone after the build (likely the OOM killer)
         env:
           CARGO_BUILD_JOBS: 2
-        run: stoat-crypto/scripts/testkit-backend.sh up
+        run: durio-crypt/scripts/testkit-backend.sh up
 
       - uses: pnpm/action-setup@v4
         with:

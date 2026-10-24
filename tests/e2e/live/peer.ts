@@ -1,4 +1,4 @@
-// dur.io (WEB-08, D7): the scripted E2EE peer of stoat-crypto (CR-15,
+// dur.io (WEB-08, D7): the scripted E2EE peer of durio-crypt (CR-15,
 // `crates/stoat-crypto-testkit/examples/peer.rs`) in a container on the
 // testkit network, driven over JSON lines on stdin/stdout
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";

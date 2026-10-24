@@ -1,7 +1,7 @@
-// dur.io (WEB-08, D7): the live backend of the e2e tests — the stoat-crypto
+// dur.io (WEB-08, D7): the live backend of the e2e tests — the durio-crypt
 // testkit stack with its TLS proxy:
 //
-//   TESTKIT_PUBLIC_PORT=14443 ../stoat-crypto/scripts/testkit-backend.sh up
+//   TESTKIT_PUBLIC_PORT=14443 ../durio-crypt/scripts/testkit-backend.sh up
 //
 // https://srv1.localhost:<port> and srv2.localhost are two servers (`*.localhost`
 // is loopback in Chromium and Windows); the proxy's certificate comes from
@@ -18,7 +18,7 @@ export const live = {
   server1: `srv1.localhost:${port}`,
   server2: `srv2.localhost:${port}`,
   network: process.env.DURIO_E2E_NETWORK ?? "durio-test",
-  /** Image and volume with the peer binary (stoat-crypto `target/`) */
+  /** Image and volume with the peer binary (durio-crypt `target/`) */
   peerImage: process.env.DURIO_E2E_PEER_IMAGE ?? "rust:1.96.1-bookworm",
   peerVolume: process.env.DURIO_E2E_PEER_VOLUME ?? "durio-target",
   /** Switches of the app under test */

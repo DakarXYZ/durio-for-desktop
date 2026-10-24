@@ -191,12 +191,12 @@ pnpm make                 # установщик Squirrel (Windows), zip
 (совпало и нет), бэкап и восстановление, файлы ключей, отзыв сеанса, потерянный ключ хранилища, два аккаунта на
 двух серверах, администрирование (режим администратора с кодом 2FA, приглашения на сервере только по
 приглашениям, завершение сеансов). Каждый сценарий проверяет нарушения CSP, ошибки страницы и запросы куда-либо,
-кроме приложения и его серверов. Нужны Docker и раскладка воркспейса (`../stoat-crypto`, `../stoatchat`):
+кроме приложения и его серверов. Нужны Docker и раскладка воркспейса (`../durio-crypt`, `../durio-chat`):
 
 ```bash
-TESTKIT_PUBLIC_PORT=14443 ../stoat-crypto/scripts/testkit-backend.sh up   # + tools/rust-dev/test-env.sh up
+TESTKIT_PUBLIC_PORT=14443 ../durio-crypt/scripts/testkit-backend.sh up   # + tools/rust-dev/test-env.sh up
 pnpm package && pnpm test:e2e     # ≈ 6 мин; серверы — https://srv1.localhost:14443 и srv2.localhost
-../stoat-crypto/scripts/testkit-backend.sh down && ../tools/rust-dev/test-env.sh down
+../durio-crypt/scripts/testkit-backend.sh down && ../tools/rust-dev/test-env.sh down
 ```
 
 Внутреннему CA прокси приложение доверяет только через `--ignore-certificate-errors` в командной строке теста.
